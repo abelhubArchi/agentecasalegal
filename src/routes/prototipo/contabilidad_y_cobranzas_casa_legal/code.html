@@ -1,0 +1,556 @@
+<!DOCTYPE html><html lang="es" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>CASA LEGAL - Accounting &amp; Collections</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet">
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 24px;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid #E2E8F0;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#fed255",
+                        "secondary-fixed": "#ffe08e",
+                        "on-secondary-container": "#735a00",
+                        "inverse-on-surface": "#eaf1ff",
+                        "surface-container-high": "#dce9ff",
+                        "secondary-fixed-dim": "#ecc246",
+                        "error": "#ba1a1a",
+                        "tertiary-container": "#727576",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-error": "#ffffff",
+                        "on-primary-fixed": "#00210e",
+                        "error-container": "#ffdad6",
+                        "inverse-primary": "#64dd91",
+                        "on-secondary-fixed": "#241a00",
+                        "primary-container": "#008649",
+                        "outline-variant": "#bdcabc",
+                        "outline": "#6d7a6f",
+                        "secondary": "#755b00",
+                        "tertiary-fixed-dim": "#c5c7c8",
+                        "surface-container": "#e5eeff",
+                        "background": "#f8f9ff",
+                        "primary-fixed-dim": "#64dd91",
+                        "on-tertiary-container": "#fbfdfe",
+                        "tertiary": "#5a5c5d",
+                        "on-tertiary-fixed": "#191c1d",
+                        "on-primary": "#ffffff",
+                        "surface-container-low": "#eff4ff",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed": "#e1e3e4",
+                        "on-surface-variant": "#3e4a3f",
+                        "on-tertiary-fixed-variant": "#444748",
+                        "on-tertiary": "#ffffff",
+                        "surface-dim": "#cbdbf5",
+                        "surface-bright": "#f8f9ff",
+                        "on-surface": "#0b1c30",
+                        "on-primary-container": "#f6fff4",
+                        "surface-tint": "#006d3a",
+                        "on-secondary-fixed-variant": "#584400",
+                        "primary": "#006a39",
+                        "primary-fixed": "#82faab",
+                        "on-primary-fixed-variant": "#00522b",
+                        "surface-variant": "#d3e4fe",
+                        "on-error-container": "#93000a",
+                        "on-background": "#0b1c30",
+                        "inverse-surface": "#213145",
+                        "surface": "#f8f9ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "2xl": "48px",
+                        "sm": "8px",
+                        "margin-desktop": "32px",
+                        "lg": "24px",
+                        "xl": "32px",
+                        "xs": "4px",
+                        "base": "4px",
+                        "margin-mobile": "16px",
+                        "gutter": "24px",
+                        "3xl": "64px",
+                        "max-width": "1440px",
+                        "md": "16px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "headline-xl": ["Inter"],
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-md": ["13px", {"lineHeight": "18px", "fontWeight": "500"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-lg": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "headline-xl": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="fixed left-0 top-0 h-full w-[260px] bg-[#1A1D1E] shadow-lg flex flex-col py-lg z-50">
+<div class="px-xl mb-3xl">
+<h1 class="text-headline-md font-headline-md font-bold text-secondary-fixed">CASA LEGAL</h1>
+<p class="text-label-sm text-tertiary-fixed-dim">Legal ERP System</p>
+</div>
+<nav class="flex-1 space-y-1 px-md">
+<!-- Nav Items -->
+<a class="flex items-center gap-md px-lg py-sm rounded-lg text-tertiary-fixed-dim hover:bg-surface-container-highest/5 hover:text-secondary-fixed transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-md px-lg py-sm rounded-lg text-tertiary-fixed-dim hover:bg-surface-container-highest/5 hover:text-secondary-fixed transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="groups">groups</span>
+<span class="font-label-md">Clientes</span>
+</a>
+<a class="flex items-center gap-md px-lg py-sm rounded-lg text-tertiary-fixed-dim hover:bg-surface-container-highest/5 hover:text-secondary-fixed transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="folder_open">folder_open</span>
+<span class="font-label-md">Casos</span>
+</a><a class="flex items-center gap-md px-lg py-sm rounded-lg text-tertiary-fixed-dim hover:bg-surface-container-highest/5 hover:text-secondary-fixed transition-all" href="#"><span class="material-symbols-outlined" data-icon="calendar_today">calendar_today</span><span class="font-label-md">Calendario</span></a>
+<a class="flex items-center gap-md px-lg py-sm rounded-lg border-l-4 border-secondary text-secondary-fixed bg-surface-container-highest/10 font-bold" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-label-md">Cuentas</span>
+</a>
+
+
+
+<a class="flex items-center gap-md px-lg py-sm rounded-lg text-tertiary-fixed-dim hover:bg-surface-container-highest/5 hover:text-secondary-fixed transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="font-label-md">Documentos</span>
+</a>
+</nav>
+<div class="px-md mt-auto pt-lg space-y-1">
+<button class="w-full bg-primary text-on-primary py-sm px-lg rounded-lg font-label-md flex items-center justify-center gap-sm mb-lg transition-transform active:scale-95 shadow-md shadow-primary/20">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+<span class="">New Case</span>
+</button>
+<a class="flex items-center gap-md px-lg py-sm rounded-lg text-tertiary-fixed-dim hover:bg-surface-container-highest/5 hover:text-secondary-fixed transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md">Settings</span>
+</a>
+<a class="flex items-center gap-md px-lg py-sm rounded-lg text-tertiary-fixed-dim hover:bg-surface-container-highest/5 hover:text-secondary-fixed transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="font-label-md">Support</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-[260px] h-screen overflow-y-auto">
+<!-- Top Bar -->
+<header class="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-outline-variant flex justify-between items-center w-full px-lg py-sm h-16">
+<div class="flex items-center gap-lg flex-1">
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant" data-icon="search">search</span>
+<input class="w-full pl-xl pr-md py-xs bg-surface-container-low border-none rounded-xl text-body-md focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Search cases, invoices or clients..." type="text">
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="p-xs rounded-full hover:bg-primary-container/20 text-on-surface-variant transition-all">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-xs rounded-full hover:bg-primary-container/20 text-on-surface-variant transition-all">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+</button>
+<div class="h-6 w-[1px] bg-outline-variant"></div>
+<div class="flex items-center gap-sm cursor-pointer hover:bg-surface-container-high/20 p-xs px-sm rounded-lg transition-all">
+<img alt="User profile photo" class="w-8 h-8 rounded-full border border-outline-variant shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-Ix2cVEsECatkraOPzs21KSitu6FaLUC_ycz0UVJWAmfR_dSZSiHqy1IbKtRDtFGnnBc5IQ0J4FoWNPjgmH4FtKLtpWvxMQTPvqnbMAEOM6WGhMcgQEHyVqaMh9TBhtXdKL0cigv1AxBtsf9-Dqt5aFokqidl3KZAjLJhlj8cHjYZ-DJjqjnR6jYxm2299hPoOl-J0iQJ6nt4fLecJImPvsa1LdwtPHJJ2x8OLQWwBUyj-G1C-7aCsuPk3dROAi_daur9JjoxQg4">
+<span class="font-label-md text-on-surface">Dr. Ricardo Casa</span>
+</div>
+</div>
+</header>
+<!-- Page Content -->
+<div class="p-xl max-w-[1440px] mx-auto">
+<!-- Header Actions -->
+<div class="flex justify-between items-end mb-xl">
+<div>
+<h2 class="font-headline-xl text-headline-xl text-on-surface tracking-tight">Contabilidad y Cobranzas</h2>
+<p class="text-body-md text-on-surface-variant">Control financiero en tiempo real y gestión de deudas.</p>
+</div>
+<div class="flex gap-sm">
+<button class="flex items-center gap-sm px-lg py-sm border border-outline-variant rounded-xl font-label-md text-on-surface-variant hover:bg-surface-container-low transition-all">
+<span class="material-symbols-outlined" data-icon="file_download">file_download</span>
+                        Exportar PDF
+                    </button>
+<button class="flex items-center gap-sm px-lg py-sm border border-outline-variant rounded-xl font-label-md text-on-surface-variant hover:bg-surface-container-low transition-all">
+<span class="material-symbols-outlined" data-icon="table_view">table_view</span>
+                        Exportar Excel
+                    </button>
+<button class="flex items-center gap-sm px-lg py-sm bg-primary text-on-primary rounded-xl font-label-md shadow-sm shadow-primary/20 hover:opacity-90 transition-all">
+<span class="material-symbols-outlined" data-icon="add_circle">add_circle</span>
+                        Nuevo Ingreso / Egreso
+                    </button>
+</div>
+</div>
+<!-- Dashboard Overview (Bento Grid) -->
+<div class="bento-grid mb-2xl">
+<!-- Ingresos Total Card -->
+<div class="col-span-12 md:col-span-4 glass-card p-lg rounded-2xl shadow-sm relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-lg opacity-10 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined !text-6xl text-primary" data-icon="trending_up">trending_up</span>
+</div>
+<div class="flex items-center gap-sm text-primary mb-md">
+<span class="material-symbols-outlined" data-icon="account_balance">account_balance</span>
+<span class="font-label-sm uppercase tracking-wider">Ingresos Totales (Mes)</span>
+</div>
+<div class="font-display-lg text-display-lg mb-sm">$1,245,600</div>
+<div class="flex items-center gap-base">
+<div class="flex flex-col text-on-surface-variant text-label-md">
+<span class="flex items-center gap-xs"><span class="w-2 h-2 rounded-full bg-primary"></span> Honorarios: $980,000</span>
+<span class="flex items-center gap-xs"><span class="w-2 h-2 rounded-full bg-primary-fixed"></span> Consultas: $265,600</span>
+</div>
+</div>
+</div>
+<!-- Egresos Total Card -->
+<div class="col-span-12 md:col-span-4 glass-card p-lg rounded-2xl shadow-sm relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-lg opacity-10 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined !text-6xl text-error" data-icon="trending_down">trending_down</span>
+</div>
+<div class="flex items-center gap-sm text-error mb-md">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-label-sm uppercase tracking-wider">Egresos Totales (Mes)</span>
+</div>
+<div class="font-display-lg text-display-lg mb-sm">$458,200</div>
+<div class="flex flex-wrap gap-x-md text-on-surface-variant text-label-md">
+<span class="flex items-center gap-xs"><span class="w-2 h-2 rounded-full bg-error"></span> Sueldos: $320k</span>
+<span class="flex items-center gap-xs"><span class="w-2 h-2 rounded-full bg-error/60"></span> Impuestos: $85k</span>
+<span class="flex items-center gap-xs"><span class="w-2 h-2 rounded-full bg-error/40"></span> Papelería: $53k</span>
+</div>
+</div>
+<!-- Net Profit Card -->
+<div class="col-span-12 md:col-span-4 bg-primary text-on-primary p-lg rounded-2xl shadow-xl shadow-primary/20 relative overflow-hidden">
+
+<div class="relative z-10">
+<div class="flex items-center gap-sm text-primary-fixed mb-md">
+<span class="material-symbols-outlined" data-icon="savings">savings</span>
+<span class="font-label-sm uppercase tracking-wider">Utilidad Neta</span>
+</div>
+<div class="font-display-lg text-display-lg mb-sm">$787,400</div>
+<div class="flex items-center gap-xs text-label-md bg-white/10 w-fit px-sm py-xs rounded-full">
+<span class="material-symbols-outlined !text-sm" data-icon="arrow_upward">arrow_upward</span>
+                            12% vs mes anterior
+                        </div>
+</div>
+</div>
+</div>
+<!-- Collections Section -->
+<div class="space-y-lg">
+<div class="flex items-center justify-between">
+<h3 class="font-headline-md text-headline-md text-on-surface">Gestión de Cobranzas</h3>
+<div class="flex items-center gap-md">
+<div class="flex items-center gap-sm px-md py-xs bg-surface-container-low rounded-lg border border-outline-variant">
+<span class="w-3 h-3 rounded-full bg-[#006a39]"></span>
+<span class="text-label-md">Pagado</span>
+</div>
+<div class="flex items-center gap-sm px-md py-xs bg-surface-container-low rounded-lg border border-outline-variant">
+<span class="w-3 h-3 rounded-full bg-[#fed255]"></span>
+<span class="text-label-md">Próximo a vencer</span>
+</div>
+<div class="flex items-center gap-sm px-md py-xs bg-surface-container-low rounded-lg border border-outline-variant">
+<span class="w-3 h-3 rounded-full bg-[#ba1a1a]"></span>
+<span class="text-label-md">Vencido</span>
+</div>
+</div>
+</div>
+<!-- Table Section -->
+<div class="glass-card rounded-2xl overflow-hidden shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="px-lg py-md font-label-md text-on-surface-variant uppercase tracking-wider">Cliente / Caso</th>
+<th class="px-lg py-md font-label-md text-on-surface-variant uppercase tracking-wider">Cuotas Vencidas</th>
+<th class="px-lg py-md font-label-md text-on-surface-variant uppercase tracking-wider">Monto Adeudado</th>
+<th class="px-lg py-md font-label-md text-on-surface-variant uppercase tracking-wider">Vencimiento</th>
+<th class="px-lg py-md font-label-md text-on-surface-variant uppercase tracking-wider">Estado</th>
+<th class="px-lg py-md font-label-md text-on-surface-variant uppercase tracking-wider text-right">Acciones</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1 - Vencido -->
+<tr class="hover:bg-primary-container/5 transition-colors group">
+<td class="px-lg py-lg">
+<div class="font-label-md text-on-surface">Elena Rodriguez</div>
+<div class="text-label-sm text-on-surface-variant">Divorcio - Exp. 4452/23</div>
+</td>
+<td class="px-lg py-lg">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-error !text-lg" data-icon="error">error</span>
+<span class="font-label-md">2 cuotas</span>
+</div>
+</td>
+<td class="px-lg py-lg font-bold text-on-surface">$150,000</td>
+<td class="px-lg py-lg text-on-surface-variant">15 Oct 2023</td>
+<td class="px-lg py-lg">
+<span class="px-sm py-1 rounded-full bg-error-container text-on-error-container text-label-sm font-bold flex items-center w-fit gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+                                            Vencido
+                                        </span>
+</td>
+<td class="px-lg py-lg text-right">
+<button class="p-xs text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="mail">mail</span>
+</button>
+<button class="p-xs text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 - Próximo -->
+<tr class="hover:bg-primary-container/5 transition-colors group">
+<td class="px-lg py-lg">
+<div class="font-label-md text-on-surface">Constructora Alvear S.A.</div>
+<div class="text-label-sm text-on-surface-variant">Asesoría Mensual</div>
+</td>
+<td class="px-lg py-lg">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-secondary !text-lg" data-icon="schedule">schedule</span>
+<span class="font-label-md">0 cuotas</span>
+</div>
+</td>
+<td class="px-lg py-lg font-bold text-on-surface">$85,000</td>
+<td class="px-lg py-lg text-on-surface-variant">02 Nov 2023</td>
+<td class="px-lg py-lg">
+<span class="px-sm py-1 rounded-full bg-secondary-container text-on-secondary-container text-label-sm font-bold flex items-center w-fit gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                                            Próximo
+                                        </span>
+</td>
+<td class="px-lg py-lg text-right">
+<button class="p-xs text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="mail">mail</span>
+</button>
+<button class="p-xs text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 - Pagado -->
+<tr class="hover:bg-primary-container/5 transition-colors group">
+<td class="px-lg py-lg">
+<div class="font-label-md text-on-surface">Juan Manuel Ortiz</div>
+<div class="text-label-sm text-on-surface-variant">Sucesión Fraga</div>
+</td>
+<td class="px-lg py-lg">
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined !text-lg" data-icon="check_circle">check_circle</span>
+<span class="font-label-md">Al día</span>
+</div>
+</td>
+<td class="px-lg py-lg font-bold text-on-surface-variant opacity-60">$0</td>
+<td class="px-lg py-lg text-on-surface-variant">Pagado 10 Oct</td>
+<td class="px-lg py-lg">
+<span class="px-sm py-1 rounded-full bg-primary/10 text-primary text-label-sm font-bold flex items-center w-fit gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                                            Pagado
+                                        </span>
+</td>
+<td class="px-lg py-lg text-right">
+<button class="p-xs text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="receipt_long">receipt_long</span>
+</button>
+<button class="p-xs text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 4 - Vencido -->
+<tr class="hover:bg-primary-container/5 transition-colors group">
+<td class="px-lg py-lg">
+<div class="font-label-md text-on-surface">Transportes Sur</div>
+<div class="text-label-sm text-on-surface-variant">Laboral - Lopez c/ Transp.</div>
+</td>
+<td class="px-lg py-lg">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-error !text-lg" data-icon="error">error</span>
+<span class="font-label-md">1 cuota</span>
+</div>
+</td>
+<td class="px-lg py-lg font-bold text-on-surface">$45,000</td>
+<td class="px-lg py-lg text-on-surface-variant">25 Sep 2023</td>
+<td class="px-lg py-lg">
+<span class="px-sm py-1 rounded-full bg-error-container text-on-error-container text-label-sm font-bold flex items-center w-fit gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+                                            Vencido
+                                        </span>
+</td>
+<td class="px-lg py-lg text-right">
+<button class="p-xs text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="mail">mail</span>
+</button>
+<button class="p-xs text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="bg-surface-container-low px-lg py-md flex items-center justify-between border-t border-outline-variant">
+<span class="text-label-md text-on-surface-variant">Mostrando 4 de 128 clientes</span>
+<div class="flex gap-xs">
+<button class="p-xs rounded-lg border border-outline-variant hover:bg-background transition-all disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="p-xs rounded-lg border border-outline-variant hover:bg-background transition-all">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Entries Split View -->
+<div class="grid grid-cols-12 gap-xl mt-2xl">
+<!-- Data Entry Form (Notion-like) -->
+<div class="col-span-12 lg:col-span-5">
+<div class="bg-white rounded-2xl border border-outline-variant p-xl shadow-sm">
+<h4 class="font-headline-md text-headline-md mb-lg">Registro de Movimiento</h4>
+<div class="space-y-lg">
+<div>
+<label class="block text-label-sm text-on-surface-variant uppercase mb-xs">Concepto</label>
+<input class="w-full bg-background border-none rounded-xl py-sm px-md text-body-md focus:ring-2 focus:ring-primary/20 transition-all placeholder:opacity-50" placeholder="Ej. Honorarios Mensuales - Empresa X" type="text">
+</div>
+<div class="grid grid-cols-2 gap-md">
+<div>
+<label class="block text-label-sm text-on-surface-variant uppercase mb-xs">Monto ($)</label>
+<input class="w-full bg-background border-none rounded-xl py-sm px-md text-body-md focus:ring-2 focus:ring-primary/20 transition-all" placeholder="0.00" type="number">
+</div>
+<div>
+<label class="block text-label-sm text-on-surface-variant uppercase mb-xs">Categoría</label>
+<select class="w-full bg-background border-none rounded-xl py-sm px-md text-body-md focus:ring-2 focus:ring-primary/20 transition-all">
+<option>Honorarios</option>
+<option>Consultas</option>
+<option>Sueldos</option>
+<option>Impuestos</option>
+<option>Otros</option>
+</select>
+</div>
+</div>
+<div>
+<label class="block text-label-sm text-on-surface-variant uppercase mb-xs">Notas Adicionales</label>
+<textarea class="w-full bg-background border-none rounded-xl py-sm px-md text-body-md focus:ring-2 focus:ring-primary/20 transition-all resize-none" placeholder="Añadir comentarios o detalles del pago..." rows="3"></textarea>
+</div>
+<button class="w-full bg-secondary text-on-secondary font-label-md py-md rounded-xl shadow-sm active:scale-[0.98] transition-all">
+                                Guardar Movimiento
+                            </button>
+</div>
+</div>
+</div>
+<!-- Financial Health Visualization -->
+<div class="col-span-12 lg:col-span-7 flex flex-col gap-lg">
+<div class="glass-card rounded-2xl p-lg flex-1 flex flex-col justify-between">
+<div>
+<h4 class="font-label-md text-on-surface-variant mb-sm">PROYECCIÓN DE COBROS</h4>
+<div class="flex items-end gap-md h-32 mt-lg">
+<div class="bg-primary/20 w-full rounded-t-lg h-[40%]" title="Septiembre"></div>
+<div class="bg-primary/20 w-full rounded-t-lg h-[65%]" title="Octubre"></div>
+<div class="bg-primary w-full rounded-t-lg h-[85%]" title="Noviembre (Est.)"></div>
+<div class="bg-primary/40 w-full rounded-t-lg h-[50%]" title="Diciembre (Est.)"></div>
+</div>
+<div class="flex justify-between text-label-sm text-on-surface-variant mt-sm">
+<span class="">Sept</span>
+<span class="">Oct</span>
+<span class="font-bold text-primary">Nov</span>
+<span class="">Dic</span>
+</div>
+</div>
+<div class="mt-lg p-md bg-primary-container/10 rounded-xl border border-primary/20 flex items-center gap-md">
+<span class="material-symbols-outlined text-primary !text-3xl" data-icon="lightbulb">lightbulb</span>
+<div>
+<p class="text-label-md font-bold text-primary">Recomendación del Sistema</p>
+<p class="text-label-sm text-on-surface-variant leading-tight">Tienes 12 facturas próximas a vencer esta semana. Sugerimos enviar recordatorios automáticos.</p>
+</div>
+</div>
+</div>
+<div class="flex gap-lg">
+<div class="glass-card rounded-2xl p-md flex-1 flex items-center gap-md">
+<div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center text-error">
+<span class="material-symbols-outlined" data-icon="warning">warning</span>
+</div>
+<div>
+<p class="text-label-sm text-on-surface-variant">Vencimiento Crítico</p>
+<p class="text-headline-md font-bold text-on-surface">$245k</p>
+</div>
+</div>
+<div class="glass-card rounded-2xl p-md flex-1 flex items-center gap-md">
+<div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="calendar_today">calendar_today</span>
+</div>
+<div>
+<p class="text-label-sm text-on-surface-variant">Próximos 7 días</p>
+<p class="text-headline-md font-bold text-on-surface">$128k</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Margin -->
+<div class="h-xl"></div>
+</main>
+<script>
+        // Micro-interactions and UI Logic
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mouseenter', () => {
+                btn.classList.add('transition-all');
+            });
+        });
+
+        // Simple search highlight effect
+        const searchInput = document.querySelector('input[type="text"]');
+        searchInput.addEventListener('focus', () => {
+            searchInput.parentElement.classList.add('ring-2', 'ring-primary/20');
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.parentElement.classList.remove('ring-2', 'ring-primary/20');
+        });
+    </script>
+
+
+</body></html>
