@@ -17,20 +17,20 @@ export default defineConfig({
 		SvelteKitPWA({
 			registerType: 'autoUpdate',
 			manifest: {
-				name: 'Casa Legal ERP',
+				name: 'Casa Legal Agente',
 				short_name: 'Casa Legal',
-				description: 'Sistema ERP y de Gestión Legal',
+				description: 'Sistema de Gestión Legal',
 				theme_color: '#006a39',
 				background_color: '#f8f9ff',
 				display: 'standalone',
 				icons: [
 					{
-						src: 'pwa-192x192.png',
+						src: 'casa-legal-logo.png',
 						sizes: '192x192',
 						type: 'image/png'
 					},
 					{
-						src: 'pwa-512x512.png',
+						src: 'casa-legal-logo.png',
 						sizes: '512x512',
 						type: 'image/png',
 						purpose: 'any maskable'
