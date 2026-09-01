@@ -13,6 +13,7 @@
         nombre: '',
         apellidos: '',
         rol: 'Abogado',
+        nivelAcceso: 'colaborador',
         telefono: '',
         password: ''
     });
@@ -48,7 +49,7 @@
             });
             
             showModal = false;
-            formData = { nombre: '', apellidos: '', rol: 'Abogado', telefono: '', password: '' };
+            formData = { nombre: '', apellidos: '', rol: 'Abogado', nivelAcceso: 'colaborador', telefono: '', password: '' };
         } catch (error) {
             console.error(error);
             alert("Error al crear empleado: " + error.message);
@@ -91,7 +92,10 @@
                         {emp.nombre.charAt(0)}{emp.apellidos.charAt(0)}
                     </div>
                     <h3 class="font-bold text-headline-md">{emp.nombre} {emp.apellidos}</h3>
-                    <p class="text-secondary font-bold text-label-sm mt-xs px-sm py-[2px] bg-secondary-container/30 rounded-full">{emp.rol}</p>
+                    <div class="flex gap-2 mt-xs">
+                        <p class="text-secondary font-bold text-label-sm px-sm py-[2px] bg-secondary-container/30 rounded-full">{emp.rol}</p>
+                        <p class="text-primary font-bold text-label-sm px-sm py-[2px] bg-primary/10 rounded-full">{emp.nivelAcceso === 'admin' ? 'Admin. General' : 'Colaborador'}</p>
+                    </div>
                     <p class="text-on-surface-variant text-body-md mt-sm flex items-center gap-xs justify-center">
                         <span class="material-symbols-outlined text-[16px]">phone</span> {emp.telefono}
                     </p>
@@ -129,14 +133,23 @@
                     </div>
                 </div>
                 
-                <div class="space-y-xs">
-                    <label class="text-label-sm font-bold text-on-surface-variant">Rol / Cargo</label>
-                    <select bind:value={formData.rol} class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg py-sm px-md outline-none focus:ring-2 focus:ring-primary/30">
-                        <option value="Abogado">Abogado Principal</option>
-                        <option value="Asistente Legal">Asistente Legal</option>
-                        <option value="Secretaría">Secretaría</option>
-                        <option value="Administrador">Administrador</option>
-                    </select>
+                <div class="grid grid-cols-2 gap-md">
+                    <div class="space-y-xs">
+                        <label class="text-label-sm font-bold text-on-surface-variant">Rol / Cargo</label>
+                        <select bind:value={formData.rol} class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg py-sm px-md outline-none focus:ring-2 focus:ring-primary/30">
+                            <option value="Abogado">Abogado Principal</option>
+                            <option value="Asistente Legal">Asistente Legal</option>
+                            <option value="Secretaría">Secretaría</option>
+                            <option value="Administrador">Administrador</option>
+                        </select>
+                    </div>
+                    <div class="space-y-xs">
+                        <label class="text-label-sm font-bold text-on-surface-variant">Nivel de Acceso</label>
+                        <select bind:value={formData.nivelAcceso} class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg py-sm px-md outline-none focus:ring-2 focus:ring-primary/30">
+                            <option value="colaborador">Colaborador (Acceso Limitado)</option>
+                            <option value="admin">Administrador General (Acceso Total)</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="space-y-xs">
