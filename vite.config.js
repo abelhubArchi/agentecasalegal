@@ -25,17 +25,22 @@ export default defineConfig({
 				display: 'standalone',
 				icons: [
 					{
-						src: 'casa-legal-logo.png',
+						src: 'legal.png',
 						sizes: '192x192',
 						type: 'image/png'
 					},
 					{
-						src: 'casa-legal-logo.png',
+						src: 'legal.png',
 						sizes: '512x512',
 						type: 'image/png',
 						purpose: 'any maskable'
 					}
 				]
+			},
+			devOptions: {
+				enabled: true,
+				type: 'module',
+				navigateFallback: '/'
 			}
 		})
 	]
