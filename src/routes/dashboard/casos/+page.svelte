@@ -178,9 +178,9 @@
                 <span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-outline">search</span>
                 <input bind:value={searchQuery} class="w-full bg-surface-container-lowest border border-outline-variant rounded-xl pl-[48px] pr-md py-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" placeholder="Buscar caso o cliente..." type="text">
             </div>
-            <button onclick={() => alert('Aún no disponible')} class="bg-surface-container-high text-on-surface-variant border border-outline-variant py-sm px-md rounded-xl font-bold flex items-center gap-2 hover:bg-surface-variant transition-all whitespace-nowrap cursor-not-allowed opacity-80" title="Aún no disponible">
-                <span class="material-symbols-outlined text-[18px]">edit_document</span>
-                Crear Memorial
+            <button onclick={() => isModalOpen = true} class="bg-primary text-on-primary py-sm px-md rounded-xl font-bold flex items-center gap-2 hover:opacity-90 transition-all whitespace-nowrap shadow-sm shadow-primary/20">
+                <span class="material-symbols-outlined text-[18px]">add</span>
+                Crear Trámite o Proceso
             </button>
         </div>
     </div>
@@ -352,6 +352,80 @@
                     {#if isSubmittingAvance} Guardando... {:else} Guardar Registro {/if}
                 </button>
             </form>
+        </div>
+    </div>
+</div>
+{/if}
+
+<!-- Modal: Nuevo Caso -->
+{#if isModalOpen}
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-surface rounded-2xl w-full max-w-[500px] shadow-2xl overflow-hidden animation-scale flex flex-col max-h-[90vh]">
+        <div class="p-lg border-b border-outline-variant bg-surface-container-lowest flex justify-between items-center shrink-0">
+            <div>
+                <h3 class="font-bold text-headline-sm text-on-surface">Nuevo Trámite/Proceso</h3>
+                <p class="text-label-sm text-on-surface-variant">Inicia un nuevo caso en el sistema.</p>
+            </div>
+            <button onclick={() => isModalOpen = false} class="p-2 hover:bg-surface-container rounded-full text-outline transition-colors">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        
+        <div class="p-lg overflow-y-auto custom-scrollbar">
+            <form id="nuevoCasoForm" onsubmit={handleAddCaso} class="space-y-md">
+                <div>
+                    <label class="block text-label-md font-bold text-on-surface mb-1">Cliente *</label>
+                    <select bind:value={formClienteId} class="w-full bg-surface-container-low border border-outline-variant rounded-xl px-4 py-3 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" required>
+                        <option value="" disabled selected>Selecciona un cliente...</option>
+                        {#each clientes as cli}
+                            <option value={cli.id}>{cli.nombreCompleto} ({cli.rfc_dni || 'Sin DNI'})</option>
+                        {/each}
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-label-md font-bold text-on-surface mb-1">Título del Trámite/Proceso *</label>
+                    <input type="text" bind:value={formTitulo} placeholder="Ej: Divorcio por mutuo acuerdo" class="w-full bg-surface-container-low border border-outline-variant rounded-xl px-4 py-3 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" required />
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-label-md font-bold text-on-surface mb-1">Materia/Tipo</label>
+                        <select bind:value={formTipo} class="w-full bg-surface-container-low border border-outline-variant rounded-xl px-4 py-3 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all">
+                            <option value="Civil">Civil</option>
+                            <option value="Familiar">Familiar</option>
+                            <option value="Penal">Penal</option>
+                            <option value="Inmobiliario">Inmobiliario</option>
+                            <option value="Laboral">Laboral</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-label-md font-bold text-on-surface mb-1">Fecha Límite</label>
+                        <input type="date" bind:value={formFechaLimite} class="w-full bg-surface-container-low border border-outline-variant rounded-xl px-4 py-3 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" />
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-label-md font-bold text-on-surface mb-1">Descripción inicial (Opcional)</label>
+                    <textarea bind:value={formDescripcion} rows="3" placeholder="Detalles o anotaciones iniciales del caso..." class="w-full bg-surface-container-low border border-outline-variant rounded-xl px-4 py-3 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none"></textarea>
+                </div>
+            </form>
+        </div>
+        
+        <div class="p-lg border-t border-outline-variant bg-surface-container-lowest flex justify-end gap-3 shrink-0">
+            <button onclick={() => isModalOpen = false} class="px-6 py-2 rounded-xl font-bold text-label-md text-on-surface-variant hover:bg-surface-container transition-colors">
+                Cancelar
+            </button>
+            <button type="submit" form="nuevoCasoForm" disabled={isSubmitting} class="px-6 py-2 rounded-xl font-bold text-label-md bg-primary text-on-primary hover:opacity-90 transition-opacity shadow-sm flex items-center gap-2">
+                {#if isSubmitting}
+                    <span class="material-symbols-outlined animate-spin text-[18px]">progress_activity</span> Guardando...
+                {:else}
+                    Crear Trámite
+                {/if}
+            </button>
         </div>
     </div>
 </div>

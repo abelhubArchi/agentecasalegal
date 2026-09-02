@@ -1,4 +1,5 @@
 import { db } from './client.js';
+import { getDoc } from 'firebase/firestore';
 import { 
     collection, 
     addDoc, 
@@ -13,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { addEvento } from './agenda.js';
 import { registrarActividad } from './historial.js';
+import { updateCliente } from './clientes.js';
 
 const CASOS_COLLECTION = 'casos';
 
@@ -48,6 +50,16 @@ export async function addCaso(casoData) {
             `Se inició el trámite/caso: ${casoData.titulo} para el cliente ${casoData.clienteNombre}`,
             casoData.abogadoEncargado || 'Sistema'
         );
+        
+        // Update client status
+        if (casoData.clienteId) {
+            await updateCliente(casoData.clienteId, { 
+                estado: 'En Trámite', 
+                tramiteActual: docRef.id,
+                tramiteFase: 'Pendiente Docs',
+                tramiteTitulo: casoData.titulo
+            });
+        }
         
         return { success: true, id: docRef.id };
     } catch (error) {
@@ -88,6 +100,12 @@ export async function updateCaso(id, newData) {
                 `Un trámite cambió su estado a: ${newData.estado}`,
                 'Sistema'
             );
+            
+            // Sync status to the client document
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists() && docSnap.data().clienteId) {
+                await updateCliente(docSnap.data().clienteId, { tramiteFase: newData.estado });
+            }
         }
         
         return { success: true };

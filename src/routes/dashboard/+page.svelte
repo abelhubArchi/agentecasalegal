@@ -33,15 +33,15 @@
     }));
     
     // Derived statistics
-    let totalClientesActivos = $derived(clientes.filter(c => c.estado === 'Activo').length);
-    let totalVisitasRecepcion = $derived(clientes.filter(c => c.estado === 'Activo' && c.origen === 'recepcion').length);
+    let totalClientesActivos = $derived(clientes.filter(c => c.estado !== 'Inactivo').length);
+    let totalVisitasRecepcion = $derived(clientes.filter(c => c.estado !== 'Inactivo' && c.origen === 'recepcion').length);
     let nuevosEstaSemana = $derived.by(() => {
         const unaSemanaAtras = new Date();
         unaSemanaAtras.setDate(unaSemanaAtras.getDate() - 7);
         return clientes.filter(c => {
             if (!c.fechaRegistro) return false;
             const date = c.fechaRegistro.toDate ? c.fechaRegistro.toDate() : new Date(c.fechaRegistro);
-            return date >= unaSemanaAtras && c.estado === 'Activo';
+            return date >= unaSemanaAtras && c.estado !== 'Inactivo';
         }).length;
     });
 
@@ -150,6 +150,7 @@
     </div>
 
     <!-- Primary KPI Grid -->
+    {#if isAdministrador}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-lg mb-2xl">
         <!-- Card 1: Total Clientes -->
         <div class="glass-card p-xl rounded-xl relative overflow-hidden group hover:border-primary/50 transition-all shadow-sm">
@@ -225,6 +226,7 @@
             <div class="absolute bottom-0 left-0 w-full h-1 bg-secondary scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
         </div>
     </div>
+    {/if}
 
     <!-- Main Dashboard Layout: Bento Style -->
     <div class="grid grid-cols-12 gap-lg items-start">
@@ -280,6 +282,7 @@
                 {/if}
             </div>
 
+            {#if isAdministrador}
             <!-- Salud Financiera Widget -->
             <div class="bg-white border border-outline-variant rounded-xl p-lg shadow-sm">
                 <div class="flex justify-between items-center mb-xl">
@@ -331,6 +334,7 @@
                     </button>
                 </div>
             </div>
+            {/if}
         </div>
 
         <!-- Right Column: Daily Agenda -->

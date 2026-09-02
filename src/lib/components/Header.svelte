@@ -5,6 +5,7 @@
     import { goto } from '$app/navigation';
     import { subscribeToAgenda } from '$lib/firebase/agenda.js';
     import { subscribeToHistorial } from '$lib/firebase/historial.js';
+    import { auth, signOut } from '$lib/firebase/client.js';
 
     // For the UI we can just take the first letter if no photo, or provide a default
     let userName = $derived($authStore.profile?.name || $authStore.user?.email || 'Usuario');
@@ -65,6 +66,20 @@
         if (!dateInput) return '';
         const d = dateInput.toDate ? dateInput.toDate() : new Date(dateInput);
         return d.toLocaleDateString('es-MX', {weekday: 'short', day: '2-digit', month: 'short', hour:'2-digit', minute:'2-digit'});
+    }
+
+    let isLoggingOut = $state(false);
+    async function handleLogout() {
+        if (!confirm('¿Estás seguro que deseas cerrar sesión?')) return;
+        isLoggingOut = true;
+        try {
+            await signOut(auth);
+            goto('/');
+        } catch (error) {
+            console.error("Error signing out: ", error);
+        } finally {
+            isLoggingOut = false;
+        }
     }
 </script>
 
@@ -176,13 +191,18 @@
         
         <div class="h-8 w-[1px] bg-outline-variant mx-sm"></div>
         
-        <button onclick={openSettings} class="flex items-center gap-md cursor-pointer hover:bg-primary-container/10 p-xs pr-md rounded-full transition-all text-left">
-            <img alt="Perfil" class="w-10 h-10 rounded-full border-2 border-primary/20 object-cover" src={userPhoto}>
-            <div class="hidden lg:block">
-                <p class="font-label-md text-label-md text-on-surface font-bold leading-tight">{userName}</p>
-                <p class="font-label-sm text-label-sm text-on-surface-variant leading-tight">{userRole}</p>
-            </div>
-        </button>
+        <div class="flex items-center gap-md">
+            <button onclick={openSettings} class="flex items-center gap-md cursor-pointer hover:bg-primary-container/10 p-xs pr-md rounded-full transition-all text-left">
+                <img alt="Perfil" class="w-10 h-10 rounded-full border-2 border-primary/20 object-cover" src={userPhoto}>
+                <div class="hidden lg:block">
+                    <p class="font-label-md text-label-md text-on-surface font-bold leading-tight">{userName}</p>
+                    <p class="font-label-sm text-label-sm text-on-surface-variant leading-tight">{userRole}</p>
+                </div>
+            </button>
+            <button onclick={handleLogout} disabled={isLoggingOut} class="p-xs text-error hover:bg-error-container hover:text-on-error-container rounded-full transition-all flex items-center justify-center" title="Cerrar sesión">
+                <span class="material-symbols-outlined">{isLoggingOut ? 'hourglass_empty' : 'logout'}</span>
+            </button>
+        </div>
     </div>
 </header>
 

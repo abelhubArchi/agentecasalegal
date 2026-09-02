@@ -16,11 +16,14 @@
     
     // Auth & Permissions
     let currentEmpleado = $derived(empleados.find(e => e.authUid === $authStore.user?.uid));
-    let isAdministrador = $derived(!currentEmpleado || currentEmpleado.rol === 'Administrador');
+    let isAdministrador = $derived($authStore.profile?.nivelAcceso === 'admin' || $authStore.profile?.role === 'admin' || (!currentEmpleado || currentEmpleado.rol === 'Administrador'));
+    
+    let filtroEmpleadoId = $state('todos');
 
     let transaccionesPermitidas = $derived(transacciones.filter(t => {
-        if (isAdministrador) return true;
-        return t.creadoPor === $authStore.user?.uid;
+        if (!isAdministrador) return t.creadoPor === $authStore.user?.uid;
+        if (filtroEmpleadoId !== 'todos') return t.creadoPor === filtroEmpleadoId;
+        return true;
     }));
     
     // View state
@@ -184,6 +187,16 @@
     </div>
 
     {#if !$modoCelular}
+    {#if isAdministrador}
+        <div class="mb-md flex justify-end">
+            <select bind:value={filtroEmpleadoId} class="bg-surface border border-outline-variant rounded-lg px-4 py-2 font-bold text-label-md shadow-sm outline-none focus:ring-1 focus:ring-primary">
+                <option value="todos">Vista General (Todos)</option>
+                {#each empleados as emp}
+                    <option value={emp.authUid}>{emp.nombre} {emp.apellidos}</option>
+                {/each}
+            </select>
+        </div>
+    {/if}
     <!-- Dashboard Overview (Bento Grid) -->
     <div class="grid grid-cols-12 gap-lg mb-2xl">
         <!-- Ingresos Total Card -->

@@ -10,6 +10,12 @@
     });
 
     $effect(() => {
+        if (typeof window !== 'undefined' && $page.url.pathname.startsWith('/dashboard')) {
+            localStorage.setItem('lastPath', $page.url.pathname);
+        }
+    });
+
+    $effect(() => {
         // Routing logic based on auth state
         if (!$authStore.loading) {
             const isSetupPage = $page.url.pathname.startsWith('/setup');
@@ -18,10 +24,14 @@
 
             if ($authStore.user) {
                 // User is logged in
-                if ($authStore.profile?.guide) {
-                    // Has guide selected
+                const hasGuide = $authStore.profile?.guide;
+                const isEmployee = $authStore.profile?.rol || $authStore.profile?.nivelAcceso;
+
+                if (hasGuide || isEmployee) {
+                    // Has guide selected or is an employee
                     if (isLogin || isSetupPage) {
-                        goto('/dashboard');
+                        const lastPath = (typeof window !== 'undefined' && localStorage.getItem('lastPath')) || '/dashboard';
+                        goto(lastPath.startsWith('/dashboard') ? lastPath : '/dashboard');
                     }
                 } else {
                     // No guide selected yet

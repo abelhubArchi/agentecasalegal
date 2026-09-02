@@ -38,14 +38,14 @@
 
     // Filtro principal de la tabla
     let clientesFiltrados = $derived(
-        clientes.filter(c => c.estado === 'Activo' && 
+        clientes.filter(c => c.estado !== 'Inactivo' && 
             (c.nombreCompleto.toLowerCase().includes(searchQuery.toLowerCase()) || 
              c.telefono.includes(searchQuery)))
     );
 
     // Filtro para el modal de recepción
     let clientesRecepcionFiltrados = $derived(
-        clientes.filter(c => c.estado === 'Activo' && 
+        clientes.filter(c => c.estado !== 'Inactivo' && 
             (c.nombreCompleto.toLowerCase().includes(recepcionSearch.toLowerCase()) || 
              c.telefono.includes(recepcionSearch)))
     );
@@ -86,10 +86,11 @@
     }
 
     async function handleRegistrarVisita(cliente) {
+        const motivo = prompt("Motivo de la visita (opcional):");
         isSubmitting = true;
         formError = '';
         try {
-            await registrarVisita(cliente.id, cliente.visitasTotales);
+            await registrarVisita(cliente.id, cliente.visitasTotales, motivo || '');
             successMessage = `¡Visita de ${cliente.nombreCompleto} registrada!`;
             setTimeout(closeModal, 1500);
         } catch(error) {
@@ -221,11 +222,16 @@
                                 </td>
                                 <td class="px-lg py-md">
                                     {#if cliente.tramiteActual}
-                                        <span class="px-sm py-[2px] rounded bg-primary/10 text-primary text-label-sm font-bold border border-primary/20">
-                                            {cliente.tramiteActual}
-                                        </span>
+                                        <div class="flex flex-col gap-[2px]">
+                                            <span class="px-sm py-[2px] rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wider font-bold border border-primary/20 w-max">
+                                                {cliente.tramiteFase || 'En Proceso'}
+                                            </span>
+                                            <span class="text-label-sm text-on-surface-variant max-w-[150px] truncate" title={cliente.tramiteTitulo}>
+                                                {cliente.tramiteTitulo || 'Trámite Activo'}
+                                            </span>
+                                        </div>
                                     {:else}
-                                        <span class="text-label-sm text-on-surface-variant italic">
+                                        <span class="text-label-sm text-on-surface-variant/60 italic">
                                             Sin trámite en proceso
                                         </span>
                                     {/if}

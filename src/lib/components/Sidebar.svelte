@@ -2,9 +2,18 @@
     import { page } from '$app/stores';
     import logo from '$lib/assets/logo.webp';
     import { sidebarOpen } from '$lib/stores/ui.js';
+    import { authStore } from '$lib/stores/auth.js';
 
     // Get current path to highlight active link
     let currentPath = $derived($page.url.pathname);
+
+    let isAdmin = $derived($authStore.profile?.role === 'admin' || $authStore.profile?.nivelAcceso === 'admin' || $authStore.profile?.rol === 'Administrador');
+    let modulos = $derived($authStore.profile?.modulosAccesibles || []);
+
+    function canAccess(modulo) {
+        if (isAdmin) return true;
+        return modulos.includes(modulo);
+    }
 
     function isActive(path, exact = false) {
         if (exact) {
@@ -12,6 +21,11 @@
         }
         return currentPath.startsWith(path) && currentPath !== '/dashboard';
     }
+
+    $effect(() => {
+        console.log("Current Profile in Sidebar:", $authStore.profile);
+        console.log("isAdmin evaluated as:", isAdmin);
+    });
 </script>
 
 <aside class="fixed left-0 top-0 h-full w-[260px] bg-[#1A1D1E] shadow-lg flex-col py-lg z-50 transition-transform duration-300 md:translate-x-0 {$sidebarOpen ? 'translate-x-0' : '-translate-x-full'} flex">
@@ -37,30 +51,42 @@
             <span class="material-symbols-outlined">dashboard</span>
             Dashboard
         </a>
+        {#if canAccess('clientes')}
         <a class="flex items-center gap-md px-md py-sm rounded-lg transition-all font-label-md text-label-md {isActive('/dashboard/clientes') ? 'border-l-4 border-secondary text-secondary-fixed bg-surface-container-highest/10 font-bold' : 'text-tertiary-fixed-dim hover:text-secondary-fixed hover:bg-surface-container-highest/5'}" href="/dashboard/clientes">
             <span class="material-symbols-outlined">groups</span>
             Clientes
         </a>
+        {/if}
+        {#if canAccess('casos')}
         <a class="flex items-center gap-md px-md py-sm rounded-lg transition-all font-label-md text-label-md {isActive('/dashboard/casos') ? 'border-l-4 border-secondary text-secondary-fixed bg-surface-container-highest/10 font-bold' : 'text-tertiary-fixed-dim hover:text-secondary-fixed hover:bg-surface-container-highest/5'}" href="/dashboard/casos">
             <span class="material-symbols-outlined">folder_open</span>
             Casos
         </a>
+        {/if}
+        {#if canAccess('calendario')}
         <a class="flex items-center gap-md px-md py-sm rounded-lg transition-all font-label-md text-label-md {isActive('/dashboard/calendario') ? 'border-l-4 border-secondary text-secondary-fixed bg-surface-container-highest/10 font-bold' : 'text-tertiary-fixed-dim hover:text-secondary-fixed hover:bg-surface-container-highest/5'}" href="/dashboard/calendario">
             <span class="material-symbols-outlined">event</span>
             Calendario
         </a>
+        {/if}
+        {#if isAdmin}
         <a class="flex items-center gap-md px-md py-sm rounded-lg transition-all font-label-md text-label-md {isActive('/dashboard/equipo') ? 'border-l-4 border-secondary text-secondary-fixed bg-surface-container-highest/10 font-bold' : 'text-tertiary-fixed-dim hover:text-secondary-fixed hover:bg-surface-container-highest/5'}" href="/dashboard/equipo">
             <span class="material-symbols-outlined">badge</span>
             Equipo Legal
         </a>
+        {/if}
+        {#if canAccess('cuentas')}
         <a class="flex items-center gap-md px-md py-sm rounded-lg transition-all font-label-md text-label-md {isActive('/dashboard/cuentas') ? 'border-l-4 border-secondary text-secondary-fixed bg-surface-container-highest/10 font-bold' : 'text-tertiary-fixed-dim hover:text-secondary-fixed hover:bg-surface-container-highest/5'}" href="/dashboard/cuentas">
             <span class="material-symbols-outlined">payments</span>
             Cuentas
         </a>
+        {/if}
+        {#if canAccess('documentos')}
         <a class="flex items-center gap-md px-md py-sm rounded-lg transition-all font-label-md text-label-md {isActive('/dashboard/documentos') ? 'border-l-4 border-secondary text-secondary-fixed bg-surface-container-highest/10 font-bold' : 'text-tertiary-fixed-dim hover:text-secondary-fixed hover:bg-surface-container-highest/5'}" href="/dashboard/documentos">
             <span class="material-symbols-outlined">description</span>
             Documentos
         </a>
+        {/if}
     </nav>
     
     <div class="mt-auto px-md pt-lg border-t border-surface-container-highest/10 space-y-xs">

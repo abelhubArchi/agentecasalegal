@@ -4,12 +4,14 @@
     import logo from '$lib/assets/logo.webp';
     import { fade, fly } from 'svelte/transition';
     
-    let telefono = '';
-    let password = '';
-    let errorMsg = '';
-    let isLoading = false;
+    let telefono = $state('');
+    let password = $state('');
+    let errorMsg = $state('');
+    let isLoading = $state(false);
 
-    async function handleLogin() {
+    async function handleLogin(e) {
+        if (e) e.preventDefault();
+        if (!telefono || !password) return;
         errorMsg = '';
         isLoading = true;
         try {
@@ -59,7 +61,7 @@
                 </div>
             {/if}
 
-            <form on:submit|preventDefault={handleLogin} class="auth-form">
+            <form onsubmit={(e) => { e.preventDefault(); handleLogin(); }} class="auth-form">
                 <div class="form-group">
                     <label for="telefono">Número de Teléfono</label>
                     <div class="input-wrapper">
@@ -72,16 +74,16 @@
                     <label for="password">Contraseña</label>
                     <div class="input-wrapper">
                         <svg class="input-icon" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                        <input type="password" id="password" bind:value={password} required placeholder="••••••••" />
+                        <input type="password" id="password" bind:value={password} onkeydown={(e) => { if(e.key === 'Enter') handleLogin(); }} required placeholder="••••••••" />
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-full shadow-hover" disabled={isLoading}>
+                <button type="button" onclick={handleLogin} class="btn btn-primary w-full shadow-hover flex items-center justify-center gap-2 transition-all {isLoading ? 'opacity-80 cursor-not-allowed' : ''}" disabled={isLoading}>
                     {#if isLoading}
                         <span class="loader-small"></span>
-                        Iniciando...
+                        <span class="font-bold">Iniciando sesión...</span>
                     {:else}
-                        Entrar al Sistema
+                        <span class="font-bold">Entrar al Sistema</span>
                     {/if}
                 </button>
             </form>

@@ -45,18 +45,22 @@ export async function addCliente(clienteData) {
 /**
  * Registra una nueva visita de un cliente existente
  */
-export async function registrarVisita(id, currentVisits = 0) {
+export async function registrarVisita(id, currentVisits = 0, motivo = '') {
     try {
         const docRef = doc(db, CLIENTES_COLLECTION, id);
         await updateDoc(docRef, {
             ultimaVisita: serverTimestamp(),
-            visitasTotales: (currentVisits || 1) + 1
+            visitasTotales: (currentVisits || 1) + 1,
+            ultimoMotivo: motivo || null
         });
         
+        let desc = `El cliente se ha presentado físicamente en recepción.`;
+        if (motivo) desc += ` Motivo: ${motivo}`;
+
         await registrarActividad(
             'Recepción',
             'Visita Física',
-            `El cliente se ha presentado físicamente en recepción.`,
+            desc,
             'Sistema'
         );
         
@@ -74,7 +78,7 @@ export async function registrarVisita(id, currentVisits = 0) {
  * @returns {function} Función para desuscribirse
  */
 export function subscribeToClientes(callback) {
-    const q = query(collection(db, CLIENTES_COLLECTION), orderBy('fechaRegistro', 'desc'));
+    const q = query(collection(db, CLIENTES_COLLECTION), orderBy('ultimaVisita', 'desc'));
     
     return onSnapshot(q, (snapshot) => {
         const clientes = [];
