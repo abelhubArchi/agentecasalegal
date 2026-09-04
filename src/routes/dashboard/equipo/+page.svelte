@@ -138,8 +138,12 @@
                         </button>
                     </div>
                     
-                    <div class="w-16 h-16 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-[24px] font-bold mb-md">
-                        {emp.nombre.charAt(0)}{emp.apellidos.charAt(0)}
+                    <div class="w-16 h-16 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-[24px] font-bold mb-md overflow-hidden shadow-sm">
+                        {#if emp.photoURL}
+                            <img src={emp.photoURL} alt={emp.nombre} class="w-full h-full object-cover">
+                        {:else}
+                            {emp.nombre.charAt(0)}{emp.apellidos.charAt(0)}
+                        {/if}
                     </div>
                     <h3 class="font-bold text-headline-md">{emp.nombre} {emp.apellidos}</h3>
                     <div class="flex gap-2 mt-xs">

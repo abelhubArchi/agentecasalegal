@@ -87,6 +87,10 @@
             Documentos
         </a>
         {/if}
+        <a class="flex items-center gap-md px-md py-sm rounded-lg transition-all font-label-md text-label-md {isActive('/dashboard/chatflau') ? 'border-l-4 border-[#00ff00] text-[#00ff00] bg-black font-bold' : 'text-tertiary-fixed-dim hover:text-secondary-fixed hover:bg-surface-container-highest/5'}" href="/dashboard/chatflau">
+            <span class="material-symbols-outlined {isActive('/dashboard/chatflau') ? 'text-[#00ff00]' : ''}">terminal</span>
+            Chat Flau Beta
+        </a>
     </nav>
     
     <div class="mt-auto px-md pt-lg border-t border-surface-container-highest/10 space-y-xs">

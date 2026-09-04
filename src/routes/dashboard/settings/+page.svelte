@@ -3,6 +3,10 @@
     import { goto } from '$app/navigation';
     import { storage } from '$lib/firebase/client.js';
     import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+    import { generarInformeGeneral } from '$lib/pdf/generador.js';
+    
+    let isAdministrador = $derived($authStore.profile?.nivelAcceso === 'admin' || $authStore.profile?.role === 'admin' || $authStore.profile?.rol === 'Administrador');
+    let isGeneratingPdf = $state(false);
     
     let isSaving = false;
     let isUploading = false;
@@ -54,6 +58,17 @@
             alert("Ocurrió un error al subir la foto.");
         } finally {
             isUploading = false;
+        }
+    }
+
+    async function handleGenerateReport() {
+        isGeneratingPdf = true;
+        try {
+            await generarInformeGeneral();
+        } catch (e) {
+            alert("Error al generar el informe.");
+        } finally {
+            isGeneratingPdf = false;
         }
     }
 </script>
@@ -135,6 +150,25 @@
                     </button>
                 </div>
             </div>
+
+            {#if isAdministrador}
+            <div class="pt-lg border-t border-outline-variant">
+                <label class="block text-label-sm text-on-surface-variant font-bold mb-md uppercase">Opciones de Administrador General</label>
+                <div class="bg-primary/5 border border-primary/20 rounded-xl p-md flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div>
+                        <h4 class="font-bold text-body-lg text-on-surface">Generar Informe General</h4>
+                        <p class="text-label-sm text-on-surface-variant">Descarga un PDF con el consolidado de clientes, trámites y resumen financiero.</p>
+                    </div>
+                    <button type="button" onclick={handleGenerateReport} disabled={isGeneratingPdf} class="px-md py-2 rounded-lg font-bold bg-secondary text-on-secondary hover:bg-secondary-fixed transition-colors flex items-center gap-2 shrink-0">
+                        {#if isGeneratingPdf}
+                            <span class="material-symbols-outlined animate-spin text-[18px]">progress_activity</span> Generando...
+                        {:else}
+                            <span class="material-symbols-outlined text-[18px]">picture_as_pdf</span> Descargar Informe
+                        {/if}
+                    </button>
+                </div>
+            </div>
+            {/if}
 
             <div class="pt-xl flex justify-end gap-md">
                 <button type="button" onclick={() => goto('/dashboard')} class="px-lg py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container transition-all">

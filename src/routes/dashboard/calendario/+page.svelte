@@ -333,7 +333,7 @@
                                     {:else if ev.asignadoA === 'todos'}
                                         Todo el equipo
                                     {:else}
-                                        {@const emp = empleados.find(e => e.id === ev.asignadoA)}
+                                        {@const emp = empleados.find(e => e.id === ev.asignadoA || e.authUid === ev.asignadoA)}
                                         {emp ? emp.nombre : 'Desconocido'}
                                     {/if}
                                 </div>

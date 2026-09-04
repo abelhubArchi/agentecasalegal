@@ -6,6 +6,7 @@
     import { subscribeToAgenda, updateEvento } from '$lib/firebase/agenda.js';
     import { subscribeToEmpleados } from '$lib/firebase/empleados.js';
     import { subscribeToTransacciones } from '$lib/firebase/finanzas.js';
+    import { generarInformeGeneral } from '$lib/pdf/generador.js';
 
     let userEmail = $state('');
     let clientes = $state([]);
@@ -21,6 +22,62 @@
 
     let currentEmpleado = $derived(empleados.find(e => e.authUid === $authStore.user?.uid));
     let isAdministrador = $derived(!currentEmpleado || currentEmpleado.rol === 'Administrador');
+    
+    // Filtro de Fechas
+    let showDateRangeMenu = $state(false);
+    let selectedRangeOption = $state('mes');
+    let customStart = $state('');
+    let customEnd = $state('');
+    let isExporting = $state(false);
+
+    const dateRanges = {
+        'hoy': 'Hoy',
+        'semana': 'Esta Semana',
+        'mes': 'Últimos 30 días',
+        'personalizado': 'Personalizado'
+    };
+
+    function getDateRange() {
+        let start = null;
+        let end = new Date();
+        
+        if (selectedRangeOption === 'hoy') {
+            start = new Date();
+            start.setHours(0,0,0,0);
+        } else if (selectedRangeOption === 'semana') {
+            start = new Date();
+            start.setDate(start.getDate() - 7);
+            start.setHours(0,0,0,0);
+        } else if (selectedRangeOption === 'mes') {
+            start = new Date();
+            start.setDate(start.getDate() - 30);
+            start.setHours(0,0,0,0);
+        } else if (selectedRangeOption === 'personalizado') {
+            if (customStart) {
+                start = new Date(customStart);
+                start.setDate(start.getDate() + 1); // Adjust timezone offset if necessary, but native input date is local midnight
+                start.setHours(0,0,0,0);
+            }
+            if (customEnd) {
+                end = new Date(customEnd);
+                end.setDate(end.getDate() + 1);
+                end.setHours(23,59,59,999);
+            }
+        }
+        return { start, end };
+    }
+
+    async function handleExport() {
+        isExporting = true;
+        try {
+            const { start, end } = getDateRange();
+            await generarInformeGeneral({ start, end });
+        } catch (e) {
+            alert("Error al exportar");
+        } finally {
+            isExporting = false;
+        }
+    }
     
     // Finanzas Stats
     let ingresosMes = $derived(transacciones.filter(t => t.tipo === 'Ingreso' && new Date(t.fechaHora?.toDate ? t.fechaHora.toDate() : t.fechaHora).getMonth() === new Date().getMonth()).reduce((acc, t) => acc + t.monto, 0));
@@ -137,13 +194,44 @@
             <h2 class="text-headline-xl font-headline-xl text-on-surface mb-xs">Resumen General</h2>
             <p class="text-body-lg text-on-surface-variant">Visualiza el estado actual de tu firma legal hoy. Datos en tiempo real.</p>
         </div>
-        <div class="flex gap-sm">
-            <button class="flex items-center gap-xs bg-surface-container-lowest border border-outline-variant px-md py-sm rounded-lg text-label-md hover:bg-surface transition-colors">
+        <div class="flex gap-sm relative">
+            <button onclick={() => showDateRangeMenu = !showDateRangeMenu} class="flex items-center gap-xs bg-surface-container-lowest border border-outline-variant px-md py-sm rounded-lg text-label-md hover:bg-surface transition-colors">
                 <span class="material-symbols-outlined text-[18px]">calendar_today</span>
-                Últimos 30 días
+                {dateRanges[selectedRangeOption]}
             </button>
-            <button class="flex items-center gap-xs bg-surface-container-lowest border border-outline-variant px-md py-sm rounded-lg text-label-md hover:bg-surface transition-colors">
-                <span class="material-symbols-outlined text-[18px]">download</span>
+            
+            {#if showDateRangeMenu}
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div class="fixed inset-0 z-40" onclick={() => showDateRangeMenu = false}></div>
+                <div class="absolute top-[45px] right-[100px] bg-surface border border-outline-variant rounded-xl shadow-xl z-50 p-sm min-w-[200px] flex flex-col gap-1">
+                    <button onclick={() => {selectedRangeOption = 'hoy'; showDateRangeMenu = false;}} class="text-left px-3 py-2 rounded-lg text-body-sm hover:bg-surface-container {selectedRangeOption === 'hoy' ? 'font-bold bg-primary/10 text-primary' : ''}">Hoy</button>
+                    <button onclick={() => {selectedRangeOption = 'semana'; showDateRangeMenu = false;}} class="text-left px-3 py-2 rounded-lg text-body-sm hover:bg-surface-container {selectedRangeOption === 'semana' ? 'font-bold bg-primary/10 text-primary' : ''}">Esta Semana</button>
+                    <button onclick={() => {selectedRangeOption = 'mes'; showDateRangeMenu = false;}} class="text-left px-3 py-2 rounded-lg text-body-sm hover:bg-surface-container {selectedRangeOption === 'mes' ? 'font-bold bg-primary/10 text-primary' : ''}">Últimos 30 días</button>
+                    <button onclick={() => selectedRangeOption = 'personalizado'} class="text-left px-3 py-2 rounded-lg text-body-sm hover:bg-surface-container {selectedRangeOption === 'personalizado' ? 'font-bold bg-primary/10 text-primary' : ''}">Personalizado...</button>
+                    
+                    {#if selectedRangeOption === 'personalizado'}
+                        <div class="mt-2 pt-2 border-t border-outline-variant flex flex-col gap-2">
+                            <div>
+                                <label class="text-[10px] font-bold text-outline uppercase block mb-1">Desde</label>
+                                <input type="date" bind:value={customStart} class="w-full text-sm bg-surface-container-lowest border border-outline-variant rounded p-1 outline-none">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-bold text-outline uppercase block mb-1">Hasta</label>
+                                <input type="date" bind:value={customEnd} class="w-full text-sm bg-surface-container-lowest border border-outline-variant rounded p-1 outline-none">
+                            </div>
+                            <button onclick={() => showDateRangeMenu = false} class="w-full bg-primary text-on-primary text-xs font-bold py-1.5 rounded mt-1">Aplicar</button>
+                        </div>
+                    {/if}
+                </div>
+            {/if}
+
+            <button onclick={handleExport} disabled={isExporting} class="flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-lg text-label-md hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50">
+                {#if isExporting}
+                    <span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                {:else}
+                    <span class="material-symbols-outlined text-[18px]">download</span>
+                {/if}
                 Exportar
             </button>
         </div>

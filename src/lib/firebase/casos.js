@@ -8,13 +8,16 @@ import {
     doc, 
     onSnapshot, 
     query, 
+    where,
     orderBy, 
     serverTimestamp,
-    arrayUnion
+    arrayUnion,
+    getCountFromServer
 } from 'firebase/firestore';
 import { addEvento } from './agenda.js';
 import { registrarActividad } from './historial.js';
 import { updateCliente } from './clientes.js';
+import { addTransaccion } from './finanzas.js';
 
 const CASOS_COLLECTION = 'casos';
 
@@ -23,23 +26,48 @@ const CASOS_COLLECTION = 'casos';
  */
 export async function addCaso(casoData) {
     try {
+        const snap = await getCountFromServer(collection(db, CASOS_COLLECTION));
+        const numTramite = snap.data().count + 1;
+        const numeroIdentificador = numTramite.toString();
+
         const docRef = await addDoc(collection(db, CASOS_COLLECTION), {
             ...casoData,
+            numeroTramite: numeroIdentificador,
+            creadoPor: casoData.creadoPor || 'Sistema',
             fechaCreacion: serverTimestamp(),
-            estado: 'Pendiente Docs', // Default state: Pendiente Docs, En Proceso, Adentro, Finalizado
+            estado: casoData.estado || 'Pendiente Docs', // Dynamic initial state
+            montoAcordado: casoData.montoAcordado || 0,
+            adelanto: casoData.adelanto || 0,
+            saldoPendiente: (casoData.montoAcordado || 0) - (casoData.adelanto || 0),
             avances: [] // Array of { id, fecha, descripcion, tipo, creadoPor }
         });
+
+        // Register initial transaction if there is an advance payment
+        if (casoData.adelanto && casoData.adelanto > 0) {
+            await addTransaccion({
+                tipo: 'Ingreso',
+                monto: parseFloat(casoData.adelanto),
+                concepto: `Adelanto Trámite: ${casoData.titulo} (${numeroIdentificador})`,
+                categoria: 'Honorarios',
+                notas: `Cliente: ${casoData.clienteNombre}`,
+                fechaHora: new Date(),
+                creadoPor: casoData.creadoPor || 'Sistema'
+            });
+        }
         
         // Auto-create a calendar event for the deadline (fechaLimite)
         if (casoData.fechaLimite) {
+            // Append T12:00:00 so JS Date avoids UTC day-shifting backward in America timezones
+            const fechaValida = casoData.fechaLimite.includes('T') ? casoData.fechaLimite : `${casoData.fechaLimite}T12:00:00`;
             await addEvento({
                 titulo: `Límite: ${casoData.titulo}`,
                 tipo: 'Vencimiento Trámite',
-                fechaHora: new Date(casoData.fechaLimite),
+                fechaHora: new Date(fechaValida),
                 asignadoA: casoData.abogadoEncargado || 'todos',
+                clienteId: casoData.clienteId || null,
                 notas: `Trámite del cliente: ${casoData.clienteNombre}\nDescripción: ${casoData.descripcion}`,
                 estado: 'Pendiente',
-                creadoPor: casoData.abogadoEncargado,
+                creadoPor: casoData.creadoPor || casoData.abogadoEncargado,
                 casoId: docRef.id // Link event to case
             });
         }
@@ -47,8 +75,8 @@ export async function addCaso(casoData) {
         await registrarActividad(
             'Trámites',
             'Nuevo Trámite',
-            `Se inició el trámite/caso: ${casoData.titulo} para el cliente ${casoData.clienteNombre}`,
-            casoData.abogadoEncargado || 'Sistema'
+            `Se inició el trámite/caso: ${casoData.titulo} para el cliente ${casoData.clienteNombre} (${numeroIdentificador})`,
+            casoData.creadoPor || casoData.abogadoEncargado || 'Sistema'
         );
         
         // Update client status
@@ -56,7 +84,7 @@ export async function addCaso(casoData) {
             await updateCliente(casoData.clienteId, { 
                 estado: 'En Trámite', 
                 tramiteActual: docRef.id,
-                tramiteFase: 'Pendiente Docs',
+                tramiteFase: casoData.estado || 'Pendiente Docs',
                 tramiteTitulo: casoData.titulo
             });
         }
@@ -72,12 +100,22 @@ export async function addCaso(casoData) {
  * Suscribe a los cambios de la colección Casos
  */
 export function subscribeToCasos(callback) {
-    const q = query(collection(db, CASOS_COLLECTION), orderBy('fechaCreacion', 'desc'));
+    const q = query(
+        collection(db, CASOS_COLLECTION),
+        where('archivado', '!=', true), // Ignore archived cases
+        orderBy('archivado'), // Requires index on archivado, but wait... where archivado != true requires orderBy archivado first in firestore. Let's just filter it client side or use where archivado == false.
+    );
+    // Actually, setting archivado: false explicitly on add is better so we can use == false. Or we can just fetch all and filter in JS. Let's filter in JS to avoid index issues if we don't want to create composite indexes.
     
-    return onSnapshot(q, (snapshot) => {
+    const qAll = query(collection(db, CASOS_COLLECTION), orderBy('fechaCreacion', 'desc'));
+    
+    return onSnapshot(qAll, (snapshot) => {
         const casos = [];
         snapshot.forEach((doc) => {
-            casos.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            if (!data.archivado) {
+                casos.push({ id: doc.id, ...data });
+            }
         });
         callback(casos);
     }, (error) => {
@@ -142,6 +180,7 @@ export async function registrarAvance(casoId, avanceData, programarEvento = null
                 tipo: avanceData.tipo,
                 fechaHora: new Date(programarEvento.fechaHora),
                 asignadoA: programarEvento.asignadoA || 'todos',
+                clienteId: programarEvento.clienteId || null,
                 notas: avanceData.descripcion,
                 estado: 'Pendiente',
                 creadoPor: avanceData.creadoPor,
@@ -172,6 +211,39 @@ export async function deleteCaso(id) {
         return { success: true };
     } catch (error) {
         console.error("Error al eliminar caso:", error);
+        throw error;
+    }
+}
+
+/**
+ * Archiva un caso (soft delete)
+ */
+export async function archivarCaso(id, motivo = 'Archivado') {
+    try {
+        const docRef = doc(db, CASOS_COLLECTION, id);
+        await updateDoc(docRef, { archivado: true });
+        
+        await registrarActividad(
+            'Trámites',
+            'Trámite Archivado',
+            `Un trámite fue archivado: ${motivo}`,
+            'Sistema'
+        );
+        
+        // Optionally update client to clear active tramite if it was this one
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists() && docSnap.data().clienteId) {
+            await updateCliente(docSnap.data().clienteId, { 
+                estado: 'Activo',
+                tramiteActual: null,
+                tramiteFase: null,
+                tramiteTitulo: null
+            });
+        }
+        
+        return { success: true };
+    } catch (error) {
+        console.error("Error al archivar caso:", error);
         throw error;
     }
 }
