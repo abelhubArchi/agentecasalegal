@@ -265,6 +265,7 @@
                         <div>
                             <label class="block text-label-sm font-bold text-on-surface-variant uppercase mb-xs">Categoría</label>
                             <select bind:value={formCategoria} class="w-full bg-background border-none rounded-xl py-sm px-md text-body-md focus:ring-2 focus:ring-primary/20 transition-all">
+                                <option>Procesos</option>
                                 <option>Honorarios</option>
                                 <option>Consultas</option>
                                 <option>Insumos de Oficina</option>

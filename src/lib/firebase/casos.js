@@ -48,7 +48,7 @@ export async function addCaso(casoData) {
                 tipo: 'Ingreso',
                 monto: parseFloat(casoData.adelanto),
                 concepto: `Adelanto Trámite: ${casoData.titulo} (${numeroIdentificador})`,
-                categoria: 'Honorarios',
+                categoria: 'Procesos',
                 notas: `Cliente: ${casoData.clienteNombre}`,
                 fechaHora: new Date(),
                 creadoPor: casoData.creadoPor || 'Sistema'

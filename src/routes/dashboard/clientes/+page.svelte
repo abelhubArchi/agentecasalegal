@@ -118,8 +118,8 @@
     function formatWhatsApp(phone) {
         if (!phone) return '';
         const cleanPhone = phone.replace(/\D/g, '');
-        // Asumimos código de país 52 (México) si no tiene suficientes dígitos, pero lo ideal es que lo guarde con código
-        return cleanPhone.length <= 10 ? `52${cleanPhone}` : cleanPhone;
+        // Asumimos código de país 591 (Bolivia) si no tiene suficientes dígitos, pero lo ideal es que lo guarde con código
+        return cleanPhone.length <= 10 ? `591${cleanPhone}` : cleanPhone;
     }
 </script>
 

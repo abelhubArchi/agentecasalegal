@@ -1,7 +1,8 @@
 <script>
     import { authStore } from '$lib/stores/auth.js';
     import { goto } from '$app/navigation';
-    import { storage } from '$lib/firebase/client.js';
+    import { db, storage } from '$lib/firebase/client.js';
+    import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
     import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
     import { generarInformeGeneral } from '$lib/pdf/generador.js';
     
@@ -13,25 +14,63 @@
     let saved = false;
 
     // Local state for the form, pre-filled with current authStore profile
-    let formData = {
-        name: $authStore.profile?.name || '',
-        phone: $authStore.profile?.phone || '',
-        title: $authStore.profile?.title || 'Abogado',
+    let formData = $state({
+        name: $authStore.profile?.name || $authStore.profile?.nombre || '',
+        phone: $authStore.profile?.phone || $authStore.profile?.telefono || '',
+        title: $authStore.profile?.title || $authStore.profile?.cargo || 'Abogado',
         photoURL: $authStore.profile?.photoURL || 'https://www.gravatar.com/avatar/0?d=mp&f=y',
         guide: $authStore.profile?.guide || ''
-    };
+    });
+
+    $effect(() => {
+        if ($authStore.profile && formData.name === '') {
+            formData.name = $authStore.profile.name || $authStore.profile.nombre || '';
+            formData.phone = $authStore.profile.phone || $authStore.profile.telefono || '';
+            formData.title = $authStore.profile.title || $authStore.profile.cargo || 'Abogado';
+            formData.photoURL = $authStore.profile.photoURL || 'https://www.gravatar.com/avatar/0?d=mp&f=y';
+            formData.guide = $authStore.profile.guide || '';
+        }
+    });
 
     async function saveSettings() {
         isSaving = true;
         saved = false;
         try {
-            await authStore.updateProfile({
+            authStore.updateProfile({
                 name: formData.name,
                 phone: formData.phone,
                 title: formData.title,
                 photoURL: formData.photoURL,
                 guide: formData.guide
             });
+            
+            const uid = $authStore.user?.uid;
+            if (uid) {
+                const q = query(collection(db, 'empleados'), where('authUid', '==', uid));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    const docId = querySnapshot.docs[0].id;
+                    await updateDoc(doc(db, 'empleados', docId), {
+                        name: formData.name,
+                        nombre: formData.name,
+                        phone: formData.phone,
+                        telefono: formData.phone,
+                        title: formData.title,
+                        cargo: formData.title,
+                        photoURL: formData.photoURL,
+                        guide: formData.guide
+                    });
+                } else {
+                    await updateDoc(doc(db, 'users', uid), {
+                        name: formData.name,
+                        phone: formData.phone,
+                        title: formData.title,
+                        photoURL: formData.photoURL,
+                        guide: formData.guide
+                    });
+                }
+            }
+
             saved = true;
             setTimeout(() => saved = false, 3000);
         } catch (e) {

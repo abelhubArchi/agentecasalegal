@@ -5,6 +5,7 @@
     import { subscribeToEmpleados } from '$lib/firebase/empleados.js';
     import { subscribeToCasosSettings, updateCasosSettings } from '$lib/firebase/settings.js';
     import { authStore } from '$lib/stores/auth.js';
+    import { addTransaccion } from '$lib/firebase/finanzas.js';
     
     // Store Subscriptions
     let casos = $state([]);
@@ -195,11 +196,13 @@
     let formAvanceDesc = $state('');
     let formAvanceTipo = $state('Nota');
     let formAvanceFechaProgramada = $state(''); // If Audiencia/Plazo
+    let formPagoMonto = $state(''); // If Pago
     let isSubmittingAvance = $state(false);
 
     async function handleAddAvance(e) {
         e.preventDefault();
-        if (!formAvanceDesc) return;
+        if (!formAvanceDesc && formAvanceTipo !== 'Pago') return;
+        if (formAvanceTipo === 'Pago' && !formPagoMonto) return;
         isSubmittingAvance = true;
         try {
             let programar = null;
@@ -211,14 +214,34 @@
                     clienteId: selectedCaso.clienteId
                 };
             }
+            
+            let descFinal = formAvanceDesc;
+            if (formAvanceTipo === 'Pago') {
+                const montoNum = parseFloat(formPagoMonto);
+                const nuevoSaldo = (selectedCaso.saldoPendiente || 0) - montoNum;
+                await updateCaso(selectedCaso.id, { saldoPendiente: nuevoSaldo });
+                
+                await addTransaccion({
+                    tipo: 'Ingreso',
+                    monto: montoNum,
+                    concepto: `Pago a Trámite/Proceso: ${selectedCaso.titulo}`,
+                    categoria: 'Procesos',
+                    notas: `Cliente: ${selectedCaso.clienteNombre}\n${formAvanceDesc}`,
+                    fechaHora: new Date(),
+                    creadoPor: $authStore.user?.uid
+                });
+                descFinal = `Se registró un pago de $${montoNum.toLocaleString('es-MX')}. ` + (formAvanceDesc || '');
+            }
+
             await registrarAvance(selectedCaso.id, {
-                descripcion: formAvanceDesc,
+                descripcion: descFinal || 'Pago registrado',
                 tipo: formAvanceTipo,
                 creadoPor: $authStore.user?.uid
             }, programar);
             
             formAvanceDesc = '';
             formAvanceFechaProgramada = '';
+            formPagoMonto = '';
         } catch (error) {
             console.error(error);
             alert("Error al guardar avance");
@@ -496,12 +519,13 @@
 
         <!-- Add Avance -->
         <div class="bg-white border border-outline-variant rounded-xl p-md shadow-sm mt-4">
-            <h4 class="font-bold text-label-sm text-on-surface uppercase mb-md">Registrar Avance</h4>
+            <h4 class="font-bold text-label-sm text-on-surface uppercase mb-md">Registrar Avance / Pago</h4>
             <form onsubmit={handleAddAvance} class="space-y-sm">
                 <select bind:value={formAvanceTipo} class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-label-sm outline-none">
                     <option value="Nota">Nota / Avance Simple</option>
                     <option value="Audiencia">Programar Audiencia / Cita</option>
                     <option value="Documento">Recepción de Documento</option>
+                    <option value="Pago">Registro de Pago</option>
                 </select>
                 
                 {#if formAvanceTipo === 'Audiencia'}
@@ -509,7 +533,11 @@
                     <p class="text-[10px] text-secondary flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">info</span> Se agendará automáticamente en el Calendario</p>
                 {/if}
                 
-                <textarea bind:value={formAvanceDesc} rows="2" placeholder="Detalle del avance..." class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-body-md outline-none focus:border-primary focus:ring-1 focus:ring-primary" required></textarea>
+                {#if formAvanceTipo === 'Pago'}
+                    <input type="number" step="0.01" bind:value={formPagoMonto} placeholder="Monto del pago ($)" class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-body-md outline-none focus:border-primary focus:ring-1 focus:ring-primary" required>
+                {/if}
+                
+                <textarea bind:value={formAvanceDesc} rows="2" placeholder={formAvanceTipo === 'Pago' ? "Notas del pago (Opcional)..." : "Detalle del avance..."} class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-body-md outline-none focus:border-primary focus:ring-1 focus:ring-primary" required={formAvanceTipo !== 'Pago'}></textarea>
                 
                 <button type="submit" disabled={isSubmittingAvance} class="w-full bg-secondary-container text-on-secondary-container py-1 rounded-lg font-bold text-label-sm hover:opacity-90 transition-opacity">
                     {#if isSubmittingAvance} Guardando... {:else} Guardar Registro {/if}
