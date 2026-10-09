@@ -60,7 +60,7 @@
         {#if canAccess('casos')}
         <a class="flex items-center gap-md px-md py-sm rounded-lg transition-all font-label-md text-label-md {isActive('/dashboard/casos') ? 'border-l-4 border-secondary text-secondary-fixed bg-surface-container-highest/10 font-bold' : 'text-tertiary-fixed-dim hover:text-secondary-fixed hover:bg-surface-container-highest/5'}" href="/dashboard/casos">
             <span class="material-symbols-outlined">folder_open</span>
-            Casos
+            Trámites y Casos
         </a>
         {/if}
         {#if canAccess('calendario')}
@@ -78,7 +78,7 @@
         {#if canAccess('cuentas')}
         <a class="flex items-center gap-md px-md py-sm rounded-lg transition-all font-label-md text-label-md {isActive('/dashboard/cuentas') ? 'border-l-4 border-secondary text-secondary-fixed bg-surface-container-highest/10 font-bold' : 'text-tertiary-fixed-dim hover:text-secondary-fixed hover:bg-surface-container-highest/5'}" href="/dashboard/cuentas">
             <span class="material-symbols-outlined">payments</span>
-            Cuentas
+            Bóveda (Flujo)
         </a>
         {/if}
         {#if canAccess('documentos')}

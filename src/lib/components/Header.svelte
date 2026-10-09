@@ -17,10 +17,15 @@
     
     let eventos = $state([]);
     let historial = $state([]);
+    let dismissedNotifs = $state([]);
     let unsubAgenda = null;
     let unsubHistorial = null;
 
     onMount(() => {
+        const saved = localStorage.getItem('dismissedNotifs');
+        if (saved) {
+            try { dismissedNotifs = JSON.parse(saved); } catch(e) {}
+        }
         unsubAgenda = subscribeToAgenda(data => eventos = data);
         unsubHistorial = subscribeToHistorial(50, data => historial = data);
     });
@@ -33,6 +38,8 @@
     // Compute notifications from events
     // Rule: events assigned to the current user ('todos' or specific UID) that are in the future or very recent
     let notificaciones = $derived(eventos.filter(ev => {
+        if (dismissedNotifs.includes(ev.id)) return false;
+        
         const isForMe = ev.asignadoA === 'todos' || ev.asignadoA === $authStore.user?.uid;
         if (!isForMe) return false;
         
@@ -44,6 +51,12 @@
     }).slice(0, 5)); // Keep only upcoming 5 for the bell
     
     let hasUnread = $derived(notificaciones.length > 0); // Simplification
+
+    function marcarLeidas() {
+        const idsToDismiss = notificaciones.map(n => n.id);
+        dismissedNotifs = [...dismissedNotifs, ...idsToDismiss];
+        localStorage.setItem('dismissedNotifs', JSON.stringify(dismissedNotifs));
+    }
 
     function openSettings() {
         goto('/dashboard/settings');
@@ -113,7 +126,9 @@
                 <div class="absolute top-12 right-12 w-[350px] bg-surface/90 backdrop-blur-xl border border-outline-variant rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[80vh] animation-scale origin-top-right">
                     <div class="p-md border-b border-outline-variant bg-surface-container-lowest flex justify-between items-center">
                         <h3 class="font-bold text-label-lg text-on-surface">Notificaciones</h3>
-                        <button class="text-[11px] font-bold text-primary hover:underline">Marcar leídas</button>
+                        {#if hasUnread}
+                            <button onclick={marcarLeidas} class="text-[11px] font-bold text-primary hover:underline">Marcar leídas</button>
+                        {/if}
                     </div>
                     <div class="overflow-y-auto custom-scrollbar flex-1 divide-y divide-outline-variant/50">
                         {#if notificaciones.length === 0}

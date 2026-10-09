@@ -139,7 +139,7 @@
                         notifiedEvents.add(ev.id);
                         
                         const evDate = (ev.fechaHora && typeof ev.fechaHora.toDate === 'function') ? ev.fechaHora.toDate() : new Date(ev.fechaHora);
-                        const timeString = evDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+                        const timeString = evDate.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
                         
                         new Notification("¡Actividad Próxima!", {
                             body: `Tienes: ${ev.titulo} a las ${timeString}`,
@@ -387,7 +387,7 @@
                             <span class="material-symbols-outlined text-[16px]">trending_up</span> Ingresos
                         </div>
                         <p class="text-headline-lg font-bold text-on-surface">
-                            {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(ingresosMes)}
+                            {new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(ingresosMes)}
                         </p>
                     </div>
 
@@ -397,7 +397,7 @@
                             <span class="material-symbols-outlined text-[16px]">trending_down</span> Egresos
                         </div>
                         <p class="text-headline-lg font-bold text-on-surface">
-                            {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(egresosMes)}
+                            {new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(egresosMes)}
                         </p>
                     </div>
 
@@ -407,7 +407,7 @@
                             <span class="material-symbols-outlined text-[16px]">account_balance</span> Utilidad Neta
                         </div>
                         <p class="text-headline-lg font-bold {utilidadMes >= 0 ? 'text-primary' : 'text-error'}">
-                            {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(utilidadMes)}
+                            {new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(utilidadMes)}
                         </p>
                     </div>
                 </div>
@@ -463,7 +463,7 @@
                                         {/if}
                                     </div>
                                     <span class="text-label-sm font-bold bg-surface-container px-sm py-[2px] rounded-md text-on-surface {expiring ? 'text-error' : ''}">
-                                        {evDate.toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}
+                                        {evDate.toLocaleTimeString('es-BO', {hour: '2-digit', minute:'2-digit'})}
                                     </span>
                                 </div>
                                 

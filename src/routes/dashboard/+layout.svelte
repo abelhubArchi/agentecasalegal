@@ -44,7 +44,7 @@
                 
                 if (typeof window !== 'undefined' && "Notification" in window && Notification.permission === "granted") {
                     new Notification("Nuevo Movimiento", {
-                        body: `${nombreCreador} registró un ${latest.tipo}: ${latest.concepto} por $${latest.monto}`,
+                        body: `${nombreCreador} registró un ${latest.tipo}: ${latest.concepto} por Bs. ${latest.monto}`,
                         icon: 'https://cdn-icons-png.flaticon.com/512/3277/3277490.png'
                     });
                 }

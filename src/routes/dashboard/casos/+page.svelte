@@ -6,6 +6,7 @@
     import { subscribeToCasosSettings, updateCasosSettings } from '$lib/firebase/settings.js';
     import { authStore } from '$lib/stores/auth.js';
     import { addTransaccion } from '$lib/firebase/finanzas.js';
+    import { generarFacturaPago } from '$lib/pdf/generador.js';
     
     // Store Subscriptions
     let casos = $state([]);
@@ -109,8 +110,22 @@
     let formTipo = $state('Civil');
     let formFechaLimite = $state('');
     let formClienteId = $state('');
+    let formClienteSearch = $state('');
+    let isClientDropdownOpen = $state(false);
     let formMontoAcordado = $state('');
     let formAdelanto = $state('');
+
+    let filteredClientesForForm = $derived(clientes.filter(cli => 
+        cli.nombreCompleto?.toLowerCase().includes(formClienteSearch.toLowerCase()) || 
+        cli.rfc_dni?.toLowerCase().includes(formClienteSearch.toLowerCase()) ||
+        cli.telefono?.toLowerCase().includes(formClienteSearch.toLowerCase())
+    ).slice(0, 30));
+
+    function selectClienteForForm(cli) {
+        formClienteId = cli.id;
+        formClienteSearch = `${cli.nombreCompleto} - CI: ${cli.rfc_dni || 'N/A'}`;
+        isClientDropdownOpen = false;
+    }
 
     async function handleAddCaso(e) {
         e.preventDefault();
@@ -134,7 +149,7 @@
             });
             isModalOpen = false;
             // Reset
-            formTitulo = ''; formDescripcion = ''; formFechaLimite = ''; formClienteId = '';
+            formTitulo = ''; formDescripcion = ''; formFechaLimite = ''; formClienteId = ''; formClienteSearch = '';
             formMontoAcordado = ''; formAdelanto = '';
         } catch (error) {
             console.error(error);
@@ -221,7 +236,7 @@
                 const nuevoSaldo = (selectedCaso.saldoPendiente || 0) - montoNum;
                 await updateCaso(selectedCaso.id, { saldoPendiente: nuevoSaldo });
                 
-                await addTransaccion({
+                const docRefFinanzas = await addTransaccion({
                     tipo: 'Ingreso',
                     monto: montoNum,
                     concepto: `Pago a Trámite/Proceso: ${selectedCaso.titulo}`,
@@ -230,7 +245,21 @@
                     fechaHora: new Date(),
                     creadoPor: $authStore.user?.uid
                 });
-                descFinal = `Se registró un pago de $${montoNum.toLocaleString('es-MX')}. ` + (formAvanceDesc || '');
+                
+                // Generar Recibo Automático
+                try {
+                    await generarFacturaPago({
+                        id: docRefFinanzas?.id || Date.now().toString(),
+                        clienteNombre: selectedCaso.clienteNombre,
+                        concepto: `Pago de Trámite (${selectedCaso.numeroTramite || selectedCaso.titulo}): ${formAvanceDesc || 'Abono'}`,
+                        monto: montoNum,
+                        fecha: new Date()
+                    });
+                } catch(err) {
+                    console.error("Error generating invoice:", err);
+                }
+
+                descFinal = `Se registró un pago de Bs. ${montoNum.toLocaleString('es-MX')}. ` + (formAvanceDesc || '');
             }
 
             await registrarAvance(selectedCaso.id, {
@@ -259,9 +288,11 @@
         const oldEstado = caso.estado;
         // Optimistic local update so it snaps instantly
         caso.estado = newEstado; 
+        const now = new Date();
+        caso.ultimaModificacion = now;
         
         try {
-            await updateCaso(caso.id, { estado: newEstado });
+            await updateCaso(caso.id, { estado: newEstado, ultimaModificacion: now });
             await registrarAvance(caso.id, {
                 descripcion: `El trámite se movió a la etapa: ${newEstado}`,
                 tipo: 'Estado',
@@ -273,6 +304,16 @@
             alert("Hubo un error al mover el caso. Intenta de nuevo.");
         }
     }
+
+    function getSortDate(c) {
+        if (c.ultimaModificacion) {
+            return c.ultimaModificacion.toDate ? c.ultimaModificacion.toDate().getTime() : new Date(c.ultimaModificacion).getTime();
+        }
+        if (c.fechaCreacion) {
+            return c.fechaCreacion.toDate ? c.fechaCreacion.toDate().getTime() : new Date(c.fechaCreacion).getTime();
+        }
+        return 0;
+    }
 </script>
 
 <div class="p-4 md:p-lg max-w-[1600px] mx-auto w-full h-full flex flex-col relative overflow-x-hidden">
@@ -281,7 +322,7 @@
         <div>
             <h2 class="font-headline-xl text-headline-xl text-on-surface tracking-tight flex items-center gap-2">
                 <span class="material-symbols-outlined text-[32px] text-secondary-fixed-dim" style="font-variation-settings: 'FILL' 1;">folder_supervised</span>
-                Trámites y Procesos
+                Trámites y Casos
             </h2>
             <p class="text-body-md text-on-surface-variant">Gestor Kanban y línea de tiempo procesal.</p>
         </div>
@@ -305,7 +346,7 @@
     <!-- Kanban Board -->
     <div class="flex-1 flex gap-md md:gap-lg overflow-x-auto custom-scrollbar pb-md">
         {#each columnas as col}
-            {@const colCasos = casosFiltrados.filter(c => c.estado === col)}
+            {@const colCasos = casosFiltrados.filter(c => c.estado === col).sort((a,b) => getSortDate(b) - getSortDate(a))}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div 
                 ondragover={(e) => { e.preventDefault(); dragOverColumn = col; }}
@@ -337,7 +378,7 @@
                             ondragstart={(e) => { draggedCaso = caso; e.dataTransfer.effectAllowed = 'move'; }}
                             ondragend={() => draggedCaso = null}
                             onclick={() => openCasoDetails(caso)} 
-                            class="bg-white border {overdue ? 'border-error/50 bg-error/5 shadow-error/10' : 'border-outline-variant hover:border-primary/50'} p-md rounded-xl shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-all relative overflow-hidden group {draggedCaso?.id === caso.id ? 'opacity-50 scale-95' : 'opacity-100'}"
+                            class="bg-white border shrink-0 {overdue ? 'border-error/50 bg-error/5 shadow-error/10' : 'border-outline-variant hover:border-primary/50'} p-md rounded-xl shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-all relative overflow-hidden group {draggedCaso?.id === caso.id ? 'opacity-50 scale-95' : 'opacity-100'}"
                         >
                             {#if overdue}
                                 <div class="absolute top-0 left-0 w-1 h-full bg-error"></div>
@@ -358,7 +399,7 @@
                             
                             <h4 class="font-bold text-body-lg text-on-surface mb-xs leading-tight line-clamp-2">
                                 {#if caso.numeroTramite}
-                                    <span class="text-primary text-[12px] font-bold mr-1">#{caso.numeroTramite}</span>
+                                    <span class="text-primary text-[12px] font-bold mr-1">{caso.numeroTramite}</span>
                                 {/if}
                                 {caso.titulo}
                             </h4>
@@ -368,9 +409,9 @@
                             
                             {#if caso.montoAcordado > 0}
                                 <div class="mb-sm flex items-center justify-between text-[11px] font-bold p-1 bg-surface-container rounded">
-                                    <span class="text-on-surface-variant">Acordado: ${caso.montoAcordado.toLocaleString('es-MX')}</span>
+                                    <span class="text-on-surface-variant">Acordado: Bs. {caso.montoAcordado.toLocaleString('es-MX')}</span>
                                     <span class={caso.saldoPendiente > 0 ? 'text-error' : 'text-primary'}>
-                                        Saldo: ${caso.saldoPendiente?.toLocaleString('es-MX') || '0'}
+                                        Saldo: Bs. {caso.saldoPendiente?.toLocaleString('es-MX') || '0'}
                                     </span>
                                 </div>
                             {/if}
@@ -410,7 +451,7 @@
         <div>
             <span class="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-widest mb-xs inline-block">{selectedCaso.tipo}</span>
             {#if selectedCaso.numeroTramite}
-                <span class="bg-secondary/10 text-secondary text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-widest mb-xs inline-block ml-2">#{selectedCaso.numeroTramite}</span>
+                <span class="bg-secondary/10 text-secondary text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-widest mb-xs inline-block ml-2">{selectedCaso.numeroTramite}</span>
             {/if}
             <h3 class="font-bold text-headline-md text-on-surface leading-tight mb-2">{selectedCaso.titulo}</h3>
             <p class="text-label-sm text-on-surface-variant flex items-center gap-1">
@@ -419,10 +460,10 @@
             {#if selectedCaso.montoAcordado > 0}
                 <div class="flex gap-sm mt-sm">
                     <span class="bg-surface-container-high text-on-surface-variant text-[11px] font-bold px-2 py-1 rounded">
-                        Acordado: ${selectedCaso.montoAcordado.toLocaleString('es-MX')}
+                        Acordado: Bs. {selectedCaso.montoAcordado.toLocaleString('es-MX')}
                     </span>
                     <span class="text-[11px] font-bold px-2 py-1 rounded {selectedCaso.saldoPendiente > 0 ? 'bg-error-container text-on-error-container' : 'bg-primary-container text-on-primary-container'}">
-                        Saldo: ${selectedCaso.saldoPendiente?.toLocaleString('es-MX') || '0'}
+                        Saldo: Bs. {selectedCaso.saldoPendiente?.toLocaleString('es-MX') || '0'}
                     </span>
                 </div>
             {/if}
@@ -534,7 +575,7 @@
                 {/if}
                 
                 {#if formAvanceTipo === 'Pago'}
-                    <input type="number" step="0.01" bind:value={formPagoMonto} placeholder="Monto del pago ($)" class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-body-md outline-none focus:border-primary focus:ring-1 focus:ring-primary" required>
+                    <input type="number" step="0.01" bind:value={formPagoMonto} placeholder="Monto del pago (Bs.)" class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-body-md outline-none focus:border-primary focus:ring-1 focus:ring-primary" required>
                 {/if}
                 
                 <textarea bind:value={formAvanceDesc} rows="2" placeholder={formAvanceTipo === 'Pago' ? "Notas del pago (Opcional)..." : "Detalle del avance..."} class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-body-md outline-none focus:border-primary focus:ring-1 focus:ring-primary" required={formAvanceTipo !== 'Pago'}></textarea>
@@ -613,14 +654,28 @@
         
         <div class="p-lg overflow-y-auto custom-scrollbar">
             <form id="nuevoCasoForm" onsubmit={handleAddCaso} class="space-y-md">
-                <div>
-                    <label class="block text-label-md font-bold text-on-surface mb-1">Cliente *</label>
-                    <select bind:value={formClienteId} class="w-full bg-surface-container-low border border-outline-variant rounded-xl px-4 py-3 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" required>
-                        <option value="" disabled selected>Selecciona un cliente...</option>
-                        {#each clientes as cli}
-                            <option value={cli.id}>{cli.nombreCompleto} ({cli.rfc_dni || 'Sin DNI'})</option>
-                        {/each}
-                    </select>
+                <div class="relative">
+                    <label class="block text-label-md font-bold text-on-surface mb-1">Cliente * (Buscar por Nombre o CI)</label>
+                    <input type="text" bind:value={formClienteSearch} onfocus={() => isClientDropdownOpen = true} oninput={() => { isClientDropdownOpen = true; formClienteId = ''; }} placeholder="Ej. Juan Perez..." class="w-full bg-surface-container-low border border-outline-variant rounded-xl px-4 py-3 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" required={!formClienteId} autocomplete="off" />
+                    {#if isClientDropdownOpen}
+                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                        <div class="fixed inset-0 z-40" onclick={() => isClientDropdownOpen = false}></div>
+                        <div class="absolute z-50 w-full mt-1 bg-surface border border-outline-variant rounded-xl shadow-lg max-h-[250px] overflow-y-auto custom-scrollbar">
+                            {#if filteredClientesForForm.length === 0}
+                                <div class="p-3 text-on-surface-variant text-label-sm">No se encontraron clientes</div>
+                            {/if}
+                            {#each filteredClientesForForm as cli}
+                                <button type="button" onclick={() => selectClienteForForm(cli)} class="w-full text-left px-4 py-2 hover:bg-surface-container transition-colors border-b border-outline-variant/50 last:border-0">
+                                    <p class="font-bold text-label-md text-on-surface">{cli.nombreCompleto}</p>
+                                    <p class="text-label-sm text-on-surface-variant">CI: {cli.rfc_dni || 'N/A'} {cli.telefono ? ' | Tel: '+cli.telefono : ''}</p>
+                                </button>
+                            {/each}
+                        </div>
+                    {/if}
+                    {#if formClienteId}
+                        <div class="mt-2 text-[11px] font-bold text-primary flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">check_circle</span> Cliente seleccionado</div>
+                    {/if}
                 </div>
                 
                 <div>
@@ -649,13 +704,13 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-label-md font-bold text-on-surface mb-1 flex items-center gap-1">
-                            <span class="material-symbols-outlined text-[16px] text-secondary">payments</span> Monto Acordado ($)
+                            <span class="material-symbols-outlined text-[16px] text-secondary">payments</span> Monto Acordado (Bs.)
                         </label>
                         <input type="number" step="0.01" bind:value={formMontoAcordado} placeholder="0.00" class="w-full bg-surface-container-low border border-outline-variant rounded-xl px-4 py-3 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" />
                     </div>
                     <div>
                         <label class="block text-label-md font-bold text-on-surface mb-1 flex items-center gap-1">
-                            <span class="material-symbols-outlined text-[16px] text-primary">account_balance_wallet</span> Adelanto Inicial ($)
+                            <span class="material-symbols-outlined text-[16px] text-primary">account_balance_wallet</span> Adelanto Inicial (Bs.)
                         </label>
                         <input type="number" step="0.01" bind:value={formAdelanto} placeholder="0.00" class="w-full bg-surface-container-low border border-outline-variant rounded-xl px-4 py-3 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" />
                     </div>

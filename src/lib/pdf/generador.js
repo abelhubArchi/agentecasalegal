@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { db } from '$lib/firebase/client.js';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import logoUrl from '$lib/assets/logo.webp';
 
 export async function generarInformeGeneral(options = {}) {
     const { start, end } = options;
@@ -14,13 +15,13 @@ export async function generarInformeGeneral(options = {}) {
         doc.setTextColor(40);
         let title = "Informe General - Casa Legal";
         if (start && end) {
-            title = `Informe: ${start.toLocaleDateString('es-MX')} - ${end.toLocaleDateString('es-MX')}`;
+            title = `Informe: ${start.toLocaleDateString('es-BO')} - ${end.toLocaleDateString('es-BO')}`;
         }
         doc.text(title, 14, 22);
         
         doc.setFontSize(10);
         doc.setTextColor(100);
-        const date = new Date().toLocaleString('es-MX');
+        const date = new Date().toLocaleString('es-BO');
         doc.text(`Generado el: ${date}`, 14, 30);
         
         let startY = 40;
@@ -62,7 +63,7 @@ export async function generarInformeGeneral(options = {}) {
                 const d = data.fechaCreacion.toDate ? data.fechaCreacion.toDate() : new Date(data.fechaCreacion);
                 if (start && end && (d < start || d > end)) return;
             }
-            casosData.push([data.numeroTramite || '-', data.titulo, data.clienteNombre, data.estado || 'Pendiente', data.montoAcordado ? `$${data.montoAcordado}` : '-']);
+            casosData.push([data.numeroTramite || '-', data.titulo, data.clienteNombre, data.estado || 'Pendiente', data.montoAcordado ? `Bs. ${data.montoAcordado}` : '-']);
         });
 
         if (casosData.length > 0) {
@@ -101,7 +102,7 @@ export async function generarInformeGeneral(options = {}) {
             if (data.tipo === 'Ingreso') totalIngresos += monto;
             else if (data.tipo === 'Egreso') totalEgresos += monto;
             
-            transData.push([fecha, data.tipo, data.categoria || '-', `$${monto.toLocaleString('es-MX')}`]);
+            transData.push([fecha, data.tipo, data.categoria || '-', `Bs. ${monto.toLocaleString('es-BO')}`]);
         });
         
         // Solo mostramos los últimos 20 para no hacer el reporte tan largo
@@ -118,9 +119,9 @@ export async function generarInformeGeneral(options = {}) {
             doc.text("Resumen Financiero (Últimas Transacciones)", 14, startY);
             
             doc.setFontSize(10);
-            doc.text(`Total Ingresos (Histórico): $${totalIngresos.toLocaleString('es-MX')}`, 14, startY + 6);
-            doc.text(`Total Egresos (Histórico): $${totalEgresos.toLocaleString('es-MX')}`, 14, startY + 12);
-            doc.text(`Balance General: $${(totalIngresos - totalEgresos).toLocaleString('es-MX')}`, 14, startY + 18);
+            doc.text(`Total Ingresos (Histórico): Bs. ${totalIngresos.toLocaleString('es-BO')}`, 14, startY + 6);
+            doc.text(`Total Egresos (Histórico): Bs. ${totalEgresos.toLocaleString('es-BO')}`, 14, startY + 12);
+            doc.text(`Balance General: Bs. ${(totalIngresos - totalEgresos).toLocaleString('es-BO')}`, 14, startY + 18);
             
             autoTable(doc, {
                 startY: startY + 22,
@@ -136,6 +137,80 @@ export async function generarInformeGeneral(options = {}) {
         return true;
     } catch (error) {
         console.error("Error generando PDF:", error);
+        throw error;
+    }
+}
+
+export async function generarFacturaPago(pagoData) {
+    try {
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a5' // A5 size is good for receipts
+        });
+
+        // Header info
+        doc.setFontSize(14);
+        doc.setTextColor(0, 0, 0);
+        doc.text("RECIBO DE PAGO", 14, 40);
+
+        try {
+            const img = new Image();
+            img.src = logoUrl;
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+            });
+            const canvas = document.createElement('canvas');
+            // scale down the canvas
+            const scale = 20 / img.height; 
+            canvas.width = img.width * scale;
+            canvas.height = 20;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/png');
+            
+            doc.addImage(dataUrl, 'PNG', 14, 10, canvas.width, canvas.height, '', 'FAST'); 
+        } catch (e) {
+            console.warn("Could not load logo:", e);
+            doc.setFontSize(16);
+            doc.text("CASA LEGAL", 14, 20);
+        }
+
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`N°: ${pagoData.id || Date.now()}`, 14, 46);
+        const fechaStr = pagoData.fecha ? new Date(pagoData.fecha).toLocaleDateString('es-BO') : new Date().toLocaleDateString('es-BO');
+        doc.text(`Fecha: ${fechaStr}`, 14, 52);
+
+        // Body info
+        doc.setTextColor(0);
+        doc.setFontSize(11);
+        doc.text(`Cliente: ${pagoData.clienteNombre || 'N/A'}`, 14, 65);
+        
+        // Handle long concepts by splitting
+        const splitConcepto = doc.splitTextToSize(`Concepto: ${pagoData.concepto || 'Pago de Servicios'}`, 120);
+        doc.text(splitConcepto, 14, 73);
+
+        const yPosForTotal = 73 + (splitConcepto.length * 5) + 5;
+
+        // Box for Amount
+        doc.setDrawColor(200);
+        doc.setFillColor(245, 245, 245);
+        doc.rect(14, yPosForTotal, 120, 15, 'F');
+        
+        doc.setFontSize(14);
+        doc.text(`TOTAL: Bs. ${parseFloat(pagoData.monto).toLocaleString('es-BO')}`, 20, yPosForTotal + 10);
+
+        // Footer
+        doc.setFontSize(9);
+        doc.setTextColor(150);
+        doc.text("Gracias por su preferencia.", 14, yPosForTotal + 30);
+
+        doc.save(`Recibo_CASA_LEGAL_${pagoData.id || Date.now()}.pdf`);
+        return true;
+    } catch (error) {
+        console.error("Error al generar factura:", error);
         throw error;
     }
 }

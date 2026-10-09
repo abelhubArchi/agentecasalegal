@@ -28,7 +28,7 @@ export async function addCaso(casoData) {
     try {
         const snap = await getCountFromServer(collection(db, CASOS_COLLECTION));
         const numTramite = snap.data().count + 1;
-        const numeroIdentificador = numTramite.toString();
+        const numeroIdentificador = `CL-${numTramite}`;
 
         const docRef = await addDoc(collection(db, CASOS_COLLECTION), {
             ...casoData,

@@ -1,6 +1,9 @@
 <script>
     import { onMount, onDestroy } from 'svelte';
     import { subscribeToClientes, addCliente, archivarCliente, registrarVisita } from '$lib/firebase/clientes.js';
+    import { addTransaccion } from '$lib/firebase/finanzas.js';
+    import { generarFacturaPago } from '$lib/pdf/generador.js';
+    import { authStore } from '$lib/stores/auth.js';
     import { modoCelular } from '$lib/stores/ui.js';
 
     let clientes = $state([]);
@@ -23,6 +26,62 @@
         telefono: '',
         rfc_dni: ''
     });
+
+    // Cobro Rápido Modal
+    let showCobroModal = $state(false);
+    let cobroCliente = $state(null);
+    let cobroConceptoPredefinido = $state('Fotocopias');
+    let cobroConceptoOtro = $state('');
+    let cobroMonto = $state('');
+    let isSubmittingCobro = $state(false);
+
+    function openCobroModal(cliente) {
+        cobroCliente = cliente;
+        cobroConceptoPredefinido = 'Fotocopias';
+        cobroConceptoOtro = '';
+        cobroMonto = '';
+        showCobroModal = true;
+    }
+
+    async function handleCobroRapido(e) {
+        e.preventDefault();
+        if (!cobroMonto) return;
+        
+        isSubmittingCobro = true;
+        try {
+            const conceptoFinal = cobroConceptoPredefinido === 'Otro' ? cobroConceptoOtro : cobroConceptoPredefinido;
+            const docRefFinanzas = await addTransaccion({
+                tipo: 'Ingreso',
+                monto: parseFloat(cobroMonto),
+                concepto: `Cobro Rápido: ${conceptoFinal}`,
+                categoria: 'Procesos',
+                notas: `Cliente: ${cobroCliente.nombreCompleto}`,
+                fechaHora: new Date(),
+                creadoPor: $authStore.user?.uid
+            });
+            
+            try {
+                await generarFacturaPago({
+                    id: docRefFinanzas?.id || Date.now().toString(),
+                    clienteNombre: cobroCliente.nombreCompleto,
+                    concepto: `Servicio: ${conceptoFinal}`,
+                    monto: parseFloat(cobroMonto),
+                    fecha: new Date()
+                });
+            } catch(err) {
+                console.error("Error generating invoice:", err);
+            }
+            
+            showCobroModal = false;
+            successMessage = '¡Cobro registrado y recibo generado!';
+            setTimeout(() => { successMessage = ''; }, 3000);
+        } catch(error) {
+            console.error(error);
+            alert("Error al registrar el cobro");
+        } finally {
+            isSubmittingCobro = false;
+        }
+    }
 
     onMount(() => {
         // Subscribe to real-time updates from Firestore
@@ -242,6 +301,9 @@
                                           <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/>
                                         </svg>
                                     </a>
+                                    <button onclick={() => openCobroModal(cliente)} class="p-xs text-secondary opacity-0 group-hover:opacity-100 transition-opacity hover:bg-secondary/10 rounded-lg" title="Cobro Rápido / Añadir Pago">
+                                        <span class="material-symbols-outlined text-[20px]">payments</span>
+                                    </button>
                                     <button class="p-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/10 rounded-lg" title="Ver / Editar Cliente">
                                         <span class="material-symbols-outlined text-[20px]">visibility</span>
                                     </button>
@@ -464,6 +526,52 @@
                     </form>
                 {/if}
             </div>
+        </div>
+    </div>
+{/if}
+
+<!-- Modal de Cobro Rápido -->
+{#if showCobroModal && cobroCliente}
+    <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div class="bg-surface rounded-2xl w-full max-w-[400px] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div class="p-lg border-b border-outline-variant bg-surface-container-lowest flex justify-between items-center">
+                <h3 class="font-bold text-headline-sm flex items-center gap-2"><span class="material-symbols-outlined text-secondary">payments</span> Cobro Rápido</h3>
+                <button onclick={() => showCobroModal = false} class="p-1 hover:bg-surface-container rounded-full"><span class="material-symbols-outlined">close</span></button>
+            </div>
+            <form onsubmit={handleCobroRapido} class="p-lg space-y-md bg-white">
+                <div>
+                    <label class="block text-label-sm font-bold text-on-surface-variant uppercase mb-1">Cliente</label>
+                    <p class="font-bold text-body-lg text-on-surface">{cobroCliente.nombreCompleto}</p>
+                </div>
+                <div>
+                    <label class="block text-label-sm font-bold text-on-surface-variant uppercase mb-1">Motivo / Concepto</label>
+                    <select bind:value={cobroConceptoPredefinido} class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-body-md focus:border-secondary outline-none">
+                        <option value="Fotocopias">Fotocopias</option>
+                        <option value="Trámite Rápido">Trámite Rápido</option>
+                        <option value="Consulta Rápida">Consulta Rápida</option>
+                        <option value="Legalización">Legalización</option>
+                        <option value="Otro">Otro (Especificar)</option>
+                    </select>
+                    {#if cobroConceptoPredefinido === 'Otro'}
+                        <input type="text" bind:value={cobroConceptoOtro} placeholder="Escribe el motivo..." class="w-full mt-2 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-body-md focus:border-secondary outline-none" required>
+                    {/if}
+                </div>
+                <div>
+                    <label class="block text-label-sm font-bold text-on-surface-variant uppercase mb-1">Monto (Bs.)</label>
+                    <input type="number" step="0.01" bind:value={cobroMonto} placeholder="0.00" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-headline-md font-bold text-center focus:border-secondary outline-none" required>
+                </div>
+                <div class="pt-sm flex justify-end gap-3">
+                    <button type="button" onclick={() => showCobroModal = false} class="px-4 py-2 text-on-surface-variant font-bold hover:bg-surface-container rounded-lg">Cancelar</button>
+                    <button type="submit" disabled={isSubmittingCobro} class="px-4 py-2 bg-secondary text-on-secondary font-bold rounded-lg hover:opacity-90 flex items-center gap-2">
+                        {#if isSubmittingCobro}
+                            <span class="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+                        {:else}
+                            <span class="material-symbols-outlined text-[18px]">receipt</span>
+                        {/if}
+                        Registrar y Generar Factura
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 {/if}
