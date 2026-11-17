@@ -31,7 +31,7 @@
             const isSetupPage = pathname.startsWith('/setup');
             const isDashboard = pathname.startsWith('/dashboard');
             const isPresentacion = pathname.startsWith('/presentacion');
-            const isChatLegalPublic = pathname.startsWith('/chatlegal/') || pathname.startsWith('/secreto/');
+            const isChatLegalPublic = pathname.startsWith('/chatlegal/') || pathname.startsWith('/nuevo/');
             const isCustomFirmPortal = !!$page.params.empresaSlug;
             const isLogin = pathname === '/' || isCustomFirmPortal;
 
