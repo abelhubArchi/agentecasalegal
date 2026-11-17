@@ -1,0 +1,17 @@
+{
+  "name": "Casa Legal - Sistema Jurídico",
+  "short_name": "Casa Legal",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8f9ff",
+  "theme_color": "#006a39",
+  "description": "Sistema integral de gestión jurídica, inmobiliaria y confidencial",
+  "icons": [
+    {
+      "src": "/legal.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

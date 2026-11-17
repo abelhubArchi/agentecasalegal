@@ -11,6 +11,7 @@ import {
     serverTimestamp
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { getTenantCollection, getTenantDoc } from './tenant.js';
 import { registrarActividad } from './historial.js';
 
 const DOCUMENTOS_COLLECTION = 'documentos';
@@ -58,7 +59,7 @@ export async function uploadDocumento(file, metadata) {
         // Extra safety: remove any keys that resolved to undefined
         Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
 
-        const docRef = await addDoc(collection(db, DOCUMENTOS_COLLECTION), payload);
+        const docRef = await addDoc(getTenantCollection(DOCUMENTOS_COLLECTION), payload);
 
         await registrarActividad(
             'Bóveda Documental',
@@ -78,7 +79,7 @@ export async function uploadDocumento(file, metadata) {
  * Suscribe a los documentos
  */
 export function subscribeToDocumentos(callback) {
-    const q = query(collection(db, DOCUMENTOS_COLLECTION), orderBy('fechaSubida', 'desc'));
+    const q = query(getTenantCollection(DOCUMENTOS_COLLECTION), orderBy('fechaSubida', 'desc'));
     
     return onSnapshot(q, (snapshot) => {
         const documentos = [];
@@ -96,7 +97,7 @@ export function subscribeToDocumentos(callback) {
  */
 export async function updateDocumento(id, newData) {
     try {
-        const docRef = doc(db, DOCUMENTOS_COLLECTION, id);
+        const docRef = getTenantDoc(DOCUMENTOS_COLLECTION, id);
         await updateDoc(docRef, newData);
         return { success: true };
     } catch (error) {
@@ -117,7 +118,7 @@ export async function deleteDocumento(id, storagePath) {
         }
         
         // Delete from Firestore
-        await deleteDoc(doc(db, DOCUMENTOS_COLLECTION, id));
+        await deleteDoc(getTenantDoc(DOCUMENTOS_COLLECTION, id));
         return { success: true };
     } catch (error) {
         console.error("Error al eliminar documento:", error);

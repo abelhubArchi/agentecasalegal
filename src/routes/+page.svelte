@@ -1,6 +1,10 @@
 <script>
+    import { onMount } from 'svelte';
+    import { page } from '$app/stores';
     import { auth, signInWithEmailAndPassword } from '$lib/firebase/client.js';
     import { authStore } from '$lib/stores/auth.js';
+    import { empresaStore } from '$lib/stores/empresa.js';
+    import { setActiveTenantId } from '$lib/firebase/tenant.js';
     import logo from '$lib/assets/logo.webp';
     import { fade, fly } from 'svelte/transition';
     
@@ -8,23 +12,46 @@
     let password = $state('');
     let errorMsg = $state('');
     let isLoading = $state(false);
+    let firmParam = $state('');
+
+    onMount(() => {
+        const emailFromUrl = $page.url.searchParams.get('loginEmail') || $page.url.searchParams.get('email');
+        const phoneFromUrl = $page.url.searchParams.get('telefono');
+        const firmFromUrl = $page.url.searchParams.get('firm');
+
+        if (emailFromUrl) {
+            telefono = emailFromUrl;
+        } else if (phoneFromUrl) {
+            telefono = phoneFromUrl;
+        }
+
+        if (firmFromUrl) {
+            firmParam = decodeURIComponent(firmFromUrl);
+        } else {
+            // Si entra a la raíz / sin parámetro de firma, es el portal maestro de Casa Legal
+            setActiveTenantId(null);
+            empresaStore.init();
+        }
+    });
 
     async function handleLogin(e) {
         if (e) e.preventDefault();
-        if (!telefono || !password) return;
+        const inputVal = telefono ? telefono.trim() : '';
+        if (!inputVal || !password) return;
         errorMsg = '';
         isLoading = true;
         try {
-            // Convierte el teléfono en el identificador técnico de Firebase
-            const fakeEmail = `${telefono}@casalegal.com`;
-            await signInWithEmailAndPassword(auth, fakeEmail, password);
+            // Si el usuario ingresó un email completo, úsalo directamente.
+            // Si ingresó sólo un teléfono o alias numérico, añade el dominio técnico.
+            const targetEmail = inputVal.includes('@') ? inputVal : `${inputVal}@casalegal.com`;
+            await signInWithEmailAndPassword(auth, targetEmail, password);
             // La redirección está manejada por +layout.svelte (onAuthStateChanged)
         } catch (error) {
             console.error(error);
             if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-                errorMsg = 'Teléfono o contraseña incorrectos.';
+                errorMsg = 'Usuario, teléfono o contraseña incorrectos.';
             } else {
-                errorMsg = 'Error al iniciar sesión. Inténtalo de nuevo.';
+                errorMsg = 'Error al iniciar sesión: ' + (error.message || 'Inténtalo de nuevo.');
             }
         } finally {
             isLoading = false;
@@ -35,7 +62,7 @@
 <div class="page-wrapper">
     <!-- Background Watermark -->
     <div class="watermark-container">
-        <img src={logo} alt="Watermark" class="watermark-logo" />
+        <img src={$empresaStore?.logoUrl || logo} alt="Watermark" class="watermark-logo" />
     </div>
 
     <!-- Animated decorative orbs -->
@@ -44,14 +71,22 @@
 
     <main class="login-container">
         <div class="glass-panel login-card" in:fly={{ y: 20, duration: 800, delay: 200 }}>
+            
+            {#if firmParam}
+                <div class="w-full mb-3 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-center text-xs font-bold flex items-center justify-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">verified</span>
+                    <span>Portal Corporativo: <strong>{firmParam}</strong></span>
+                </div>
+            {/if}
+
             <div class="logo-wrapper">
-                <img src={logo} alt="Casa Legal" class="main-logo" />
+                <img src={$empresaStore?.logoUrl || logo} alt={$empresaStore?.nombre || "Casa Legal"} class="main-logo max-h-16 object-contain" />
                 <div class="logo-glow"></div>
             </div>
             
             <div class="header-text">
-                <h2>Iniciar Sesión</h2>
-                <p class="subtitle">Gestión Jurídica Inteligente</p>
+                <h2>{firmParam || $empresaStore?.nombre || 'Casa Legal'}</h2>
+                <p class="subtitle">{$empresaStore?.subtitulo || 'Gestión Jurídica Inteligente'}</p>
             </div>
 
             {#if errorMsg}
@@ -63,10 +98,10 @@
 
             <form onsubmit={(e) => { e.preventDefault(); handleLogin(); }} class="auth-form">
                 <div class="form-group">
-                    <label for="telefono">Número de Teléfono</label>
+                    <label for="telefono">Usuario / Email / Teléfono</label>
                     <div class="input-wrapper">
                         <svg class="input-icon" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                        <input type="tel" id="telefono" bind:value={telefono} required placeholder="Ingresa tu teléfono..." />
+                        <input type="text" id="telefono" bind:value={telefono} required placeholder="Ingresa tu email o teléfono..." />
                     </div>
                 </div>
                 
@@ -89,7 +124,7 @@
             </form>
             
             <p class="toggle-mode mt-md text-label-sm text-on-surface-variant">
-                Si olvidaste tu contraseña, contacta al Administrador.
+                Si olvidaste tu contraseña, contacta al Administrador General.
             </p>
         </div>
     </main>

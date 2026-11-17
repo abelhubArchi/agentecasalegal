@@ -1,6 +1,6 @@
 <script>
     import { onMount, onDestroy } from 'svelte';
-    import { subscribeToCasos, addCaso, updateCaso, registrarAvance, deleteCaso, archivarCaso } from '$lib/firebase/casos.js';
+    import { subscribeToCasos, subscribeToCasosArchivados, addCaso, updateCaso, registrarAvance, deleteCaso, archivarCaso } from '$lib/firebase/casos.js';
     import { subscribeToClientes } from '$lib/firebase/clientes.js';
     import { subscribeToEmpleados } from '$lib/firebase/empleados.js';
     import { subscribeToCasosSettings, updateCasosSettings } from '$lib/firebase/settings.js';
@@ -10,13 +10,18 @@
     
     // Store Subscriptions
     let casos = $state([]);
+    let casosArchivados = $state([]);
     let clientes = $state([]);
     let empleados = $state([]);
     let loading = $state(true);
     let unsubC = null;
+    let unsubArchivados = null;
     let unsubCli = null;
     let unsubEmp = null;
     let unsubSettings = null;
+
+    // View Mode: 'kanban' (Casos Activos) | 'historial' (Trámites Archivados en Cierres)
+    let vistaActiva = $state('kanban');
 
     // Computed Roles
     let currentEmpleado = $derived(empleados.find(e => e.authUid === $authStore.user?.uid));
@@ -76,8 +81,16 @@
         (c.numeroTramite && c.numeroTramite.toLowerCase().includes(searchQuery.toLowerCase()))
     ));
 
+    let casosArchivadosFiltrados = $derived(casosArchivados.filter(c => 
+        (c.titulo?.toLowerCase().includes(searchQuery.toLowerCase())) || 
+        (c.clienteNombre?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (c.numeroTramite && c.numeroTramite.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (c.cierreId && c.cierreId.toLowerCase().includes(searchQuery.toLowerCase()))
+    ));
+
     onMount(() => {
         unsubC = subscribeToCasos(data => { casos = data; loading = false; });
+        unsubArchivados = subscribeToCasosArchivados(data => { casosArchivados = data; });
         unsubCli = subscribeToClientes(data => clientes = data);
         unsubEmp = subscribeToEmpleados(data => empleados = data);
         unsubSettings = subscribeToCasosSettings(data => {
@@ -87,6 +100,7 @@
 
     onDestroy(() => {
         if(unsubC) unsubC();
+        if(unsubArchivados) unsubArchivados();
         if(unsubCli) unsubCli();
         if(unsubEmp) unsubEmp();
         if(unsubSettings) unsubSettings();
@@ -343,102 +357,217 @@
         </div>
     </div>
 
-    <!-- Kanban Board -->
-    <div class="flex-1 flex gap-md md:gap-lg overflow-x-auto custom-scrollbar pb-md">
-        {#each columnas as col}
-            {@const colCasos = casosFiltrados.filter(c => c.estado === col).sort((a,b) => getSortDate(b) - getSortDate(a))}
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div 
-                ondragover={(e) => { e.preventDefault(); dragOverColumn = col; }}
-                ondragleave={() => dragOverColumn = null}
-                ondrop={(e) => {
-                    e.preventDefault();
-                    if (draggedCaso) handleDropCaso(draggedCaso, col);
-                    dragOverColumn = null;
-                }}
-                class="flex-shrink-0 w-[320px] md:w-[350px] border rounded-2xl flex flex-col overflow-hidden transition-all shadow-sm {dragOverColumn === col ? 'bg-primary/5 border-primary ring-2 ring-primary/20' : 'bg-surface-container-lowest/50 border-outline-variant/50'}"
-            >
-                
-                <!-- Column Header -->
-                <div class="p-md border-b border-outline-variant/50 flex justify-between items-center bg-surface-container-low">
-                    <h3 class="font-bold text-label-md text-on-surface uppercase tracking-wider">{col}</h3>
-                    <span class="bg-surface-container px-2 py-0.5 rounded-full text-label-sm font-bold text-on-surface-variant">{colCasos.length}</span>
-                </div>
-                
-                <!-- Column Body -->
-                <div class="p-sm flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-sm">
-                    {#each colCasos as caso}
-                        {@const overdue = caso.estado !== columnas[columnas.length - 1] && isOverdue(caso.fechaLimite)}
-                        {@const emp = empleados.find(e => e.authUid === caso.abogadoEncargado)}
-                        
-                        <!-- svelte-ignore a11y_click_events_have_key_events -->
-                        <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <div 
-                            draggable="true"
-                            ondragstart={(e) => { draggedCaso = caso; e.dataTransfer.effectAllowed = 'move'; }}
-                            ondragend={() => draggedCaso = null}
-                            onclick={() => openCasoDetails(caso)} 
-                            class="bg-white border shrink-0 {overdue ? 'border-error/50 bg-error/5 shadow-error/10' : 'border-outline-variant hover:border-primary/50'} p-md rounded-xl shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-all relative overflow-hidden group {draggedCaso?.id === caso.id ? 'opacity-50 scale-95' : 'opacity-100'}"
-                        >
-                            {#if overdue}
-                                <div class="absolute top-0 left-0 w-1 h-full bg-error"></div>
-                            {:else}
-                                <div class="absolute top-0 left-0 w-1 h-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                            {/if}
+    <!-- Tabs: Tablero Kanban Activo vs Historial de Trámites Finalizados -->
+    <div class="flex items-center gap-2 mb-6 border-b border-outline-variant pb-3 shrink-0">
+        <button
+            type="button"
+            onclick={() => vistaActiva = 'kanban'}
+            class="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-label-md transition-all {vistaActiva === 'kanban' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container'}"
+        >
+            <span class="material-symbols-outlined text-[18px]">view_kanban</span>
+            Tablero Activo (Kanban)
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold {vistaActiva === 'kanban' ? 'bg-white/20 text-white' : 'bg-surface-container-high text-on-surface-variant'}">
+                {casos.length}
+            </span>
+        </button>
+
+        <button
+            type="button"
+            onclick={() => vistaActiva = 'historial'}
+            class="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-label-md transition-all {vistaActiva === 'historial' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container'}"
+        >
+            <span class="material-symbols-outlined text-[18px]">archive</span>
+            Historial de Trámites Finalizados
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold {vistaActiva === 'historial' ? 'bg-white/20 text-white' : 'bg-surface-container-high text-on-surface-variant'}">
+                {casosArchivados.length}
+            </span>
+        </button>
+    </div>
+
+    {#if vistaActiva === 'kanban'}
+        <!-- Kanban Board -->
+        <div class="flex-1 flex gap-md md:gap-lg overflow-x-auto custom-scrollbar pb-md">
+            {#each columnas as col}
+                {@const colCasos = casosFiltrados.filter(c => c.estado === col).sort((a,b) => getSortDate(b) - getSortDate(a))}
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div 
+                    ondragover={(e) => { e.preventDefault(); dragOverColumn = col; }}
+                    ondragleave={() => dragOverColumn = null}
+                    ondrop={(e) => {
+                        e.preventDefault();
+                        if (draggedCaso) handleDropCaso(draggedCaso, col);
+                        dragOverColumn = null;
+                    }}
+                    class="flex-shrink-0 w-[320px] md:w-[350px] border rounded-2xl flex flex-col overflow-hidden transition-all shadow-sm {dragOverColumn === col ? 'bg-primary/5 border-primary ring-2 ring-primary/20' : 'bg-surface-container-lowest/50 border-outline-variant/50'}"
+                >
+                    
+                    <!-- Column Header -->
+                    <div class="p-md border-b border-outline-variant/50 flex justify-between items-center bg-surface-container-low">
+                        <h3 class="font-bold text-label-md text-on-surface uppercase tracking-wider">{col}</h3>
+                        <span class="bg-surface-container px-2 py-0.5 rounded-full text-label-sm font-bold text-on-surface-variant">{colCasos.length}</span>
+                    </div>
+                    
+                    <!-- Column Body -->
+                    <div class="p-sm flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-sm">
+                        {#each colCasos as caso}
+                            {@const overdue = caso.estado !== columnas[columnas.length - 1] && isOverdue(caso.fechaLimite)}
+                            {@const emp = empleados.find(e => e.authUid === caso.abogadoEncargado)}
                             
-                            <div class="flex justify-between items-start mb-sm">
-                                <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded {overdue ? 'bg-error-container text-on-error-container' : 'bg-surface-container text-on-surface-variant'}">
-                                    {caso.tipo}
-                                </span>
+                            <!-- svelte-ignore a11y_click_events_have_key_events -->
+                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                            <div 
+                                draggable="true"
+                                ondragstart={(e) => { draggedCaso = caso; e.dataTransfer.effectAllowed = 'move'; }}
+                                ondragend={() => draggedCaso = null}
+                                onclick={() => openCasoDetails(caso)} 
+                                class="bg-white border shrink-0 {overdue ? 'border-error/50 bg-error/5 shadow-error/10' : 'border-outline-variant hover:border-primary/50'} p-md rounded-xl shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-all relative overflow-hidden group {draggedCaso?.id === caso.id ? 'opacity-50 scale-95' : 'opacity-100'}"
+                            >
                                 {#if overdue}
-                                    <span class="text-[10px] uppercase font-bold text-error flex items-center gap-1">
-                                        <span class="material-symbols-outlined text-[12px]">warning</span> Vencido
-                                    </span>
+                                    <div class="absolute top-0 left-0 w-1 h-full bg-error"></div>
+                                {:else}
+                                    <div class="absolute top-0 left-0 w-1 h-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity"></div>
                                 {/if}
-                            </div>
-                            
-                            <h4 class="font-bold text-body-lg text-on-surface mb-xs leading-tight line-clamp-2">
-                                {#if caso.numeroTramite}
-                                    <span class="text-primary text-[12px] font-bold mr-1">{caso.numeroTramite}</span>
-                                {/if}
-                                {caso.titulo}
-                            </h4>
-                            <p class="text-label-sm text-on-surface-variant mb-md flex items-center gap-1">
-                                <span class="material-symbols-outlined text-[14px]">person</span> {caso.clienteNombre}
-                            </p>
-                            
-                            {#if caso.montoAcordado > 0}
-                                <div class="mb-sm flex items-center justify-between text-[11px] font-bold p-1 bg-surface-container rounded">
-                                    <span class="text-on-surface-variant">Acordado: Bs. {caso.montoAcordado.toLocaleString('es-MX')}</span>
-                                    <span class={caso.saldoPendiente > 0 ? 'text-error' : 'text-primary'}>
-                                        Saldo: Bs. {caso.saldoPendiente?.toLocaleString('es-MX') || '0'}
+                                
+                                <div class="flex justify-between items-start mb-sm">
+                                    <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded {overdue ? 'bg-error-container text-on-error-container' : 'bg-surface-container text-on-surface-variant'}">
+                                        {caso.tipo}
                                     </span>
+                                    {#if overdue}
+                                        <span class="text-[10px] uppercase font-bold text-error flex items-center gap-1">
+                                            <span class="material-symbols-outlined text-[12px]">warning</span> Vencido
+                                        </span>
+                                    {/if}
                                 </div>
-                            {/if}
-                            
-                            <div class="flex justify-between items-center border-t border-outline-variant/30 pt-sm mt-auto">
-                                <div class="flex -space-x-2">
-                                    <div class="w-6 h-6 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-[10px] font-bold border border-white overflow-hidden" title={emp?.nombre || 'Abogado'}>
-                                        {#if emp?.photoURL}
-                                            <img src={emp.photoURL} alt={emp.nombre} class="w-full h-full object-cover">
-                                        {:else}
-                                            {(emp?.nombre || 'U').charAt(0).toUpperCase()}
-                                        {/if}
+                                
+                                <h4 class="font-bold text-body-lg text-on-surface mb-xs leading-tight line-clamp-2">
+                                    {#if caso.numeroTramite}
+                                        <span class="text-primary text-[12px] font-bold mr-1">{caso.numeroTramite}</span>
+                                    {/if}
+                                    {caso.titulo}
+                                </h4>
+                                <p class="text-label-sm text-on-surface-variant mb-md flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[14px]">person</span> {caso.clienteNombre}
+                                </p>
+                                
+                                {#if caso.montoAcordado > 0}
+                                    <div class="mb-sm flex items-center justify-between text-[11px] font-bold p-1 bg-surface-container rounded">
+                                        <span class="text-on-surface-variant">Acordado: Bs. {caso.montoAcordado.toLocaleString('es-MX')}</span>
+                                        <span class={caso.saldoPendiente > 0 ? 'text-error' : 'text-primary'}>
+                                            Saldo: Bs. {caso.saldoPendiente?.toLocaleString('es-MX') || '0'}
+                                        </span>
                                     </div>
-                                </div>
-                                {#if caso.fechaLimite}
-                                    <span class="text-[11px] font-bold {overdue ? 'text-error' : 'text-outline'} flex items-center gap-1">
-                                        <span class="material-symbols-outlined text-[14px]">event</span>
-                                        {new Date(caso.fechaLimite).toLocaleDateString('es-MX', {day: '2-digit', month: 'short'})}
-                                    </span>
                                 {/if}
+                                
+                                <div class="flex justify-between items-center border-t border-outline-variant/30 pt-sm mt-auto">
+                                    <div class="flex -space-x-2">
+                                        <div class="w-6 h-6 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-[10px] font-bold border border-white overflow-hidden" title={emp?.nombre || 'Abogado'}>
+                                            {#if emp?.photoURL}
+                                                <img src={emp.photoURL} alt={emp.nombre} class="w-full h-full object-cover">
+                                            {:else}
+                                                {(emp?.nombre || 'U').charAt(0).toUpperCase()}
+                                            {/if}
+                                        </div>
+                                    </div>
+                                    {#if caso.fechaLimite}
+                                        <span class="text-[11px] font-bold {overdue ? 'text-error' : 'text-outline'} flex items-center gap-1">
+                                            <span class="material-symbols-outlined text-[14px]">event</span>
+                                            {new Date(caso.fechaLimite).toLocaleDateString('es-MX', {day: '2-digit', month: 'short'})}
+                                        </span>
+                                    {/if}
+                                </div>
                             </div>
-                        </div>
-                    {/each}
+                        {/each}
+                    </div>
+                </div>
+            {/each}
+        </div>
+    {:else}
+        <!-- Historial de Trámites Finalizados en Cierres de Caja -->
+        <div class="flex-1 bg-white rounded-2xl border border-outline-variant p-6 shadow-sm overflow-hidden flex flex-col">
+            <div class="mb-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <h3 class="font-bold text-headline-sm text-on-surface flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[24px] text-emerald-600">verified</span>
+                        Historial de Trámites y Procesos Concluidos
+                    </h3>
+                    <p class="text-xs text-on-surface-variant mt-0.5">
+                        Trámites finalizados y archivados automáticamente durante los Cierres de Caja oficiales. Cuentas liquidadas a cero.
+                    </p>
+                </div>
+                <div class="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">inventory_2</span>
+                    {casosArchivadosFiltrados.length} Trámites en Archivo Histórico
                 </div>
             </div>
-        {/each}
-    </div>
+
+            {#if casosArchivadosFiltrados.length === 0}
+                <div class="flex-1 flex flex-col items-center justify-center p-12 text-center text-on-surface-variant">
+                    <span class="material-symbols-outlined text-[48px] text-outline mb-2">folder_off</span>
+                    <p class="font-bold text-body-md text-on-surface">No hay trámites en el historial</p>
+                    <p class="text-xs mt-1" style="max-width: 420px;">Los trámites marcados como 'Finalizado' se archivan automáticamente aquí cada vez que el Administrador ejecuta un Cierre de Caja.</p>
+                </div>
+            {:else}
+                <div class="flex-1 overflow-x-auto overflow-y-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-surface-container-low text-on-surface-variant border-b border-outline-variant uppercase tracking-wider font-bold text-[10px]">
+                            <tr>
+                                <th class="p-3">N° Trámite / ID</th>
+                                <th class="p-3">Título y Especialidad</th>
+                                <th class="p-3">Cliente</th>
+                                <th class="p-3">Abogado</th>
+                                <th class="p-3 text-right">Monto Liquidado</th>
+                                <th class="p-3">Corte de Caja</th>
+                                <th class="p-3">Fecha Archivado</th>
+                                <th class="p-3 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-outline-variant/60">
+                            {#each casosArchivadosFiltrados as caso}
+                                {@const emp = empleados.find(e => e.authUid === caso.abogadoEncargado || e.id === caso.abogadoEncargado)}
+                                {@const fechaArch = caso.fechaArchivado ? (caso.fechaArchivado.toDate ? caso.fechaArchivado.toDate() : new Date(caso.fechaArchivado)) : null}
+                                <tr class="hover:bg-surface-container/40 transition-colors">
+                                    <td class="p-3 font-mono font-bold text-primary">
+                                        {caso.numeroTramite || caso.id?.slice(0, 8)}
+                                    </td>
+                                    <td class="p-3">
+                                        <div class="font-bold text-on-surface">{caso.titulo}</div>
+                                        <div class="text-[10px] text-on-surface-variant">{caso.tipo || 'Civil'}</div>
+                                    </td>
+                                    <td class="p-3">
+                                        <div class="font-medium text-on-surface">{caso.clienteNombre || 'Cliente'}</div>
+                                    </td>
+                                    <td class="p-3 text-on-surface-variant">
+                                        {emp ? `${emp.nombre} ${emp.apellidos || ''}` : (caso.abogadoNombre || 'Asignado')}
+                                    </td>
+                                    <td class="p-3 text-right font-mono font-bold text-emerald-600">
+                                        Bs. {(caso.montoAcordado || 0).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+                                    </td>
+                                    <td class="p-3">
+                                        <span class="px-2 py-0.5 rounded font-mono text-[10px] bg-amber-50 text-amber-800 border border-amber-300 font-bold">
+                                            {caso.cierreId || 'Cierre de Caja'}
+                                        </span>
+                                    </td>
+                                    <td class="p-3 text-on-surface-variant text-[11px]">
+                                        {fechaArch ? fechaArch.toLocaleDateString('es-BO') : 'Concluido'}
+                                    </td>
+                                    <td class="p-3 text-center">
+                                        <button
+                                            type="button"
+                                            onclick={() => openCasoDetails(caso)}
+                                            class="p-2 rounded-lg hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors"
+                                            title="Ver Expediente Completo"
+                                        >
+                                            <span class="material-symbols-outlined text-[18px]">visibility</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            {/if}
+        </div>
+    {/if}
 </div>
 
 <!-- Side Panel: Timeline / Avances -->

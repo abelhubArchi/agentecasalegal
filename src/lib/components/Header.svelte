@@ -6,6 +6,12 @@
     import { subscribeToAgenda } from '$lib/firebase/agenda.js';
     import { subscribeToHistorial } from '$lib/firebase/historial.js';
     import { auth, signOut } from '$lib/firebase/client.js';
+    import { 
+        subscribeToNotificaciones, 
+        marcarNotificacionLeida, 
+        solicitarPermisoPush, 
+        abrirEnGmail 
+    } from '$lib/services/notificaciones.js';
 
     // For the UI we can just take the first letter if no photo, or provide a default
     let userName = $derived($authStore.profile?.name || $authStore.user?.email || 'Usuario');
@@ -17,45 +23,82 @@
     
     let eventos = $state([]);
     let historial = $state([]);
+    let notifsSistema = $state([]);
     let dismissedNotifs = $state([]);
     let unsubAgenda = null;
     let unsubHistorial = null;
+    let unsubNotifs = null;
+    let pushPermissionState = $state('default');
 
     onMount(() => {
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+            pushPermissionState = Notification.permission;
+        }
         const saved = localStorage.getItem('dismissedNotifs');
         if (saved) {
             try { dismissedNotifs = JSON.parse(saved); } catch(e) {}
         }
         unsubAgenda = subscribeToAgenda(data => eventos = data);
         unsubHistorial = subscribeToHistorial(50, data => historial = data);
+
+        const uid = $authStore.user?.uid || 'admin';
+        const email = $authStore.user?.email || '';
+        unsubNotifs = subscribeToNotificaciones(uid, email, (data) => {
+            notifsSistema = data;
+        });
     });
 
     onDestroy(() => {
         if (unsubAgenda) unsubAgenda();
         if (unsubHistorial) unsubHistorial();
+        if (unsubNotifs) unsubNotifs();
     });
 
-    // Compute notifications from events
-    // Rule: events assigned to the current user ('todos' or specific UID) that are in the future or very recent
-    let notificaciones = $derived(eventos.filter(ev => {
+    // Notificaciones combinadas: Eventos próximos de agenda + Notificaciones en tiempo real del sistema (Chat, Cuentas, Enlaces)
+    let notificacionesEventos = $derived(eventos.filter(ev => {
         if (dismissedNotifs.includes(ev.id)) return false;
-        
         const isForMe = ev.asignadoA === 'todos' || ev.asignadoA === $authStore.user?.uid;
         if (!isForMe) return false;
-        
-        // Filter events that haven't passed by more than 1 day
         const eventDate = ev.fechaHora?.toDate ? ev.fechaHora.toDate() : new Date(ev.fechaHora);
         const ayer = new Date();
         ayer.setDate(ayer.getDate() - 1);
         return eventDate > ayer;
-    }).slice(0, 5)); // Keep only upcoming 5 for the bell
-    
-    let hasUnread = $derived(notificaciones.length > 0); // Simplification
+    }).map(ev => ({
+        id: ev.id,
+        tipo: 'calendario',
+        asunto: ev.titulo,
+        mensaje: ev.notas || `Actividad (${ev.tipo})`,
+        fecha: ev.fechaHora,
+        linkAccion: '/dashboard/calendario',
+        esEvento: true,
+        leido: dismissedNotifs.includes(ev.id)
+    })));
 
-    function marcarLeidas() {
-        const idsToDismiss = notificaciones.map(n => n.id);
+    let todasNotificaciones = $derived([
+        ...notifsSistema.filter(n => !dismissedNotifs.includes(n.id)),
+        ...notificacionesEventos
+    ].slice(0, 15));
+
+    let unreadCount = $derived(todasNotificaciones.filter(n => !n.leido).length);
+    let hasUnread = $derived(unreadCount > 0);
+
+    async function marcarLeidas() {
+        const idsToDismiss = todasNotificaciones.map(n => n.id);
         dismissedNotifs = [...dismissedNotifs, ...idsToDismiss];
         localStorage.setItem('dismissedNotifs', JSON.stringify(dismissedNotifs));
+        for (const n of notifsSistema) {
+            if (!n.leido) {
+                await marcarNotificacionLeida(n.id);
+            }
+        }
+    }
+
+    async function activarPush() {
+        const res = await solicitarPermisoPush();
+        pushPermissionState = res;
+        if (res === 'granted') {
+            alert("¡Notificaciones Push activadas con éxito! Recibirás alertas de mensajes, ingresos y agenda en este dispositivo.");
+        }
     }
 
     function openSettings() {
@@ -86,8 +129,13 @@
         if (!confirm('¿Estás seguro que deseas cerrar sesión?')) return;
         isLoggingOut = true;
         try {
+            const activeTenant = typeof window !== 'undefined' ? localStorage.getItem('current_tenant_slug') : null;
             await signOut(auth);
-            goto('/');
+            if (activeTenant && activeTenant !== 'casa-legal' && activeTenant !== 'default') {
+                goto(`/${activeTenant}`);
+            } else {
+                goto('/');
+            }
         } catch (error) {
             console.error("Error signing out: ", error);
         } finally {
@@ -109,12 +157,20 @@
     </div>
     
     <div class="flex items-center gap-lg">
+        <a href="/presentacion" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#c5a059]/60 bg-[#006a39]/10 hover:bg-[#006a39]/20 text-[#006a39] font-bold text-label-sm transition-all" title="Modo Jefe — Presentación a Pantalla Completa">
+            <span class="material-symbols-outlined text-[18px] text-[#c5a059]">co_present</span>
+            <span>Modo Jefe</span>
+        </a>
+
         <div class="flex items-center gap-md relative">
             <!-- Notifications Bell -->
             <button onclick={() => {showNotifications = !showNotifications; showHistory = false;}} class="relative p-xs text-on-surface-variant hover:text-primary transition-all rounded-full hover:bg-surface-container {showNotifications ? 'bg-surface-container text-primary' : ''}">
                 <span class="material-symbols-outlined">notifications</span>
                 {#if hasUnread}
                     <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-error rounded-full border-2 border-background animate-pulse"></span>
+                    <span class="absolute -top-1 -right-1 px-1 min-w-[16px] h-4 text-[9px] font-bold font-mono bg-error text-white rounded-full flex items-center justify-center border border-background">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
                 {/if}
             </button>
             
@@ -123,35 +179,97 @@
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div class="fixed inset-0 z-40" onclick={() => showNotifications = false}></div>
-                <div class="absolute top-12 right-12 w-[350px] bg-surface/90 backdrop-blur-xl border border-outline-variant rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[80vh] animation-scale origin-top-right">
-                    <div class="p-md border-b border-outline-variant bg-surface-container-lowest flex justify-between items-center">
-                        <h3 class="font-bold text-label-lg text-on-surface">Notificaciones</h3>
+                <div class="absolute top-12 right-0 sm:right-12 w-[340px] sm:w-[380px] bg-surface/95 backdrop-blur-xl border border-outline-variant rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[85vh] animation-scale origin-top-right">
+                    <div class="p-3.5 border-b border-outline-variant bg-surface-container-lowest flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-bold text-label-lg text-on-surface">Notificaciones</h3>
+                            {#if unreadCount > 0}
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/15 text-primary">
+                                    {unreadCount} nuevas
+                                </span>
+                            {/if}
+                        </div>
                         {#if hasUnread}
                             <button onclick={marcarLeidas} class="text-[11px] font-bold text-primary hover:underline">Marcar leídas</button>
                         {/if}
                     </div>
-                    <div class="overflow-y-auto custom-scrollbar flex-1 divide-y divide-outline-variant/50">
-                        {#if notificaciones.length === 0}
-                            <div class="p-xl text-center text-on-surface-variant opacity-70">
+
+                    <!-- Push Permission Request Banner -->
+                    {#if pushPermissionState === 'default'}
+                        <div class="p-2.5 bg-primary/10 border-b border-primary/20 flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                <span class="material-symbols-outlined text-primary text-[18px]">add_alert</span>
+                                <span class="text-[11px] text-on-surface truncate">¿Activar alertas Push en este equipo?</span>
+                            </div>
+                            <button
+                                onclick={activarPush}
+                                class="px-2.5 py-1 rounded-lg bg-primary text-on-primary text-[10px] font-bold shrink-0 hover:opacity-90"
+                            >
+                                Activar
+                            </button>
+                        </div>
+                    {/if}
+
+                    <div class="overflow-y-auto custom-scrollbar flex-1 divide-y divide-outline-variant/40">
+                        {#if todasNotificaciones.length === 0}
+                            <div class="p-8 text-center text-on-surface-variant opacity-70">
                                 <span class="material-symbols-outlined text-[32px] mb-2 block">notifications_paused</span>
-                                <p class="text-label-sm">No tienes eventos próximos</p>
+                                <p class="text-label-sm">No tienes notificaciones pendientes</p>
                             </div>
                         {/if}
-                        {#each notificaciones as noti}
-                            <div class="p-md hover:bg-primary/5 transition-colors cursor-pointer flex gap-md items-start">
-                                <div class="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center shrink-0">
-                                    <span class="material-symbols-outlined text-[16px]">calendar_month</span>
+                        {#each todasNotificaciones as noti}
+                            <!-- svelte-ignore a11y_click_events_have_key_events -->
+                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                            <div 
+                                onclick={() => {
+                                    if (noti.linkAccion) {
+                                        showNotifications = false;
+                                        goto(noti.linkAccion);
+                                    }
+                                }}
+                                class="p-3 hover:bg-primary/5 transition-colors cursor-pointer flex gap-3 items-start {noti.leido ? 'opacity-70' : 'bg-primary/[0.03]'}"
+                            >
+                                <!-- Icono según tipo -->
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5
+                                    {noti.tipo === 'chat' ? 'bg-emerald-100 text-emerald-800' : 
+                                     noti.tipo === 'ingreso' ? 'bg-amber-100 text-amber-800' : 
+                                     noti.tipo === 'secreto' ? 'bg-blue-100 text-blue-800' : 
+                                     'bg-primary-container text-on-primary-container'}"
+                                >
+                                    <span class="material-symbols-outlined text-[16px]">
+                                        {noti.tipo === 'chat' ? 'chat' : 
+                                         noti.tipo === 'ingreso' ? 'payments' : 
+                                         noti.tipo === 'secreto' ? 'shield' : 
+                                         'calendar_month'}
+                                    </span>
                                 </div>
-                                <div>
-                                    <p class="font-bold text-label-md text-on-surface leading-tight mb-1">{noti.titulo}</p>
-                                    <p class="text-label-sm text-on-surface-variant line-clamp-2 leading-snug">{noti.notas}</p>
-                                    <p class="text-[10px] font-bold text-primary mt-2 uppercase tracking-wider">{formatDateStr(noti.fechaHora)}</p>
+
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-bold text-xs text-on-surface leading-tight mb-0.5 truncate">{noti.asunto}</p>
+                                    <p class="text-[11px] text-on-surface-variant line-clamp-2 leading-snug">{noti.mensaje}</p>
+                                    <div class="flex items-center justify-between gap-2 mt-1.5 text-[10px] text-on-surface-variant/70 font-mono">
+                                        <span>{noti.fecha ? timeAgo(noti.fecha) : 'Reciente'}</span>
+                                        {#if noti.linkAccion}
+                                            <span class="text-primary font-bold hover:underline flex items-center gap-0.5">
+                                                Ver <span class="material-symbols-outlined text-[12px]">arrow_forward</span>
+                                            </span>
+                                        {/if}
+                                    </div>
                                 </div>
                             </div>
                         {/each}
                     </div>
-                    <div class="p-sm bg-surface-container-lowest border-t border-outline-variant text-center">
-                        <button onclick={() => goto('/dashboard/calendario')} class="text-label-sm font-bold text-primary hover:underline">Ver todo el Calendario</button>
+
+                    <div class="p-2.5 bg-surface-container-lowest border-t border-outline-variant flex justify-between items-center text-xs">
+                        <button onclick={() => { showNotifications = false; goto('/dashboard/chatlegal'); }} class="text-[11px] font-bold text-primary hover:underline">
+                            Chat Legal
+                        </button>
+                        <button onclick={() => { showNotifications = false; goto('/dashboard/cuentas'); }} class="text-[11px] font-bold text-primary hover:underline">
+                            Bóveda Cuentas
+                        </button>
+                        <button onclick={() => { showNotifications = false; goto('/dashboard/calendario'); }} class="text-[11px] font-bold text-primary hover:underline">
+                            Calendario
+                        </button>
                     </div>
                 </div>
             {/if}

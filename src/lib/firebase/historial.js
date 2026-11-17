@@ -8,6 +8,7 @@ import {
     serverTimestamp,
     limit
 } from 'firebase/firestore';
+import { getTenantCollection } from './tenant.js';
 
 const HISTORIAL_COLLECTION = 'historial';
 
@@ -20,7 +21,7 @@ const HISTORIAL_COLLECTION = 'historial';
  */
 export async function registrarActividad(modulo, tipo, descripcion, autorNombre) {
     try {
-        await addDoc(collection(db, HISTORIAL_COLLECTION), {
+        await addDoc(getTenantCollection(HISTORIAL_COLLECTION), {
             modulo,
             tipo,
             descripcion,
@@ -29,7 +30,6 @@ export async function registrarActividad(modulo, tipo, descripcion, autorNombre)
         });
     } catch (error) {
         console.error("Error al registrar en el historial:", error);
-        // We don't throw to prevent breaking the main transaction
     }
 }
 
@@ -38,7 +38,7 @@ export async function registrarActividad(modulo, tipo, descripcion, autorNombre)
  */
 export function subscribeToHistorial(limite = 50, callback) {
     const q = query(
-        collection(db, HISTORIAL_COLLECTION), 
+        getTenantCollection(HISTORIAL_COLLECTION), 
         orderBy('fechaCreacion', 'desc'),
         limit(limite)
     );

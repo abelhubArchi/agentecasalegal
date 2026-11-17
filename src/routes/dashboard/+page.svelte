@@ -226,6 +226,26 @@
                 </div>
             {/if}
 
+            <a 
+                href="/dashboard/chatlegal?tab=deaddrop"
+                class="flex items-center gap-xs bg-[#006a39] text-[#ffe08e] border border-[#c5a059] px-md py-sm rounded-lg text-label-md hover:bg-[#00542d] transition-all shadow-sm font-bold"
+                title="Crear un mensaje confidencial efímero con enlace seguro (3s-60s)"
+            >
+                <span class="material-symbols-outlined text-[18px]">local_fire_department</span>
+                <span>Crear Enlace Seguro</span>
+            </a>
+
+            {#if isAdministrador}
+                <a 
+                    href="/dashboard/settings?tab=duplicar"
+                    class="flex items-center gap-xs bg-gradient-to-r from-primary to-primary/85 text-on-primary px-md py-sm rounded-lg text-label-md hover:shadow-lg transition-all shadow-sm font-bold border border-white/10"
+                    title="Duplicar y personalizar el sistema para vender a otra firma jurídica"
+                >
+                    <span class="material-symbols-outlined text-[18px]">content_copy</span>
+                    <span>Duplicar App</span>
+                </a>
+            {/if}
+
             <button onclick={handleExport} disabled={isExporting} class="flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-lg text-label-md hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50">
                 {#if isExporting}
                     <span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
@@ -284,20 +304,26 @@
             <div class="absolute bottom-0 left-0 w-full h-1 bg-secondary scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
         </div>
 
-        <!-- Card 3: Casos Activos (Pendiente Firebase) -->
-        <div class="glass-card p-xl rounded-xl relative overflow-hidden group hover:border-primary/50 transition-all shadow-sm">
+        <!-- Card 3: Duplicar App / Venta Multi-Firma -->
+        <a 
+            href="/dashboard/settings?tab=duplicar"
+            class="glass-card p-xl rounded-xl relative overflow-hidden group hover:border-[#c5a059] transition-all shadow-sm bg-gradient-to-br from-white to-[#c5a059]/10 block"
+            title="Duplicar app y generar credenciales de administrador general"
+        >
             <div class="flex justify-between items-start mb-md">
-                <div class="w-10 h-10 bg-primary-fixed-dim/20 rounded-lg flex items-center justify-center text-primary">
-                    <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">folder</span>
+                <div class="w-10 h-10 bg-[#c5a059]/20 rounded-lg flex items-center justify-center text-[#996d1d]">
+                    <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">content_copy</span>
                 </div>
-                <span class="text-on-surface-variant text-label-sm font-bold bg-surface-container px-sm py-1 rounded-full">Próximamente</span>
+                <span class="text-[#0c1a14] text-[10px] font-bold bg-[#c5a059] px-sm py-0.5 rounded-full uppercase tracking-wider font-mono">
+                    Marca Blanca
+                </span>
             </div>
-            <h3 class="text-label-md text-on-surface-variant mb-xs">Casos Activos</h3>
+            <h3 class="text-label-md text-on-surface-variant mb-xs">Duplicar App</h3>
             <div class="flex items-baseline gap-sm">
-                <span class="text-display-lg font-display-lg text-on-surface-variant/40">--</span>
+                <span class="text-title-md font-bold text-on-surface group-hover:text-primary transition-colors">Vender Sistema</span>
             </div>
-            <div class="absolute bottom-0 left-0 w-full h-1 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
-        </div>
+            <div class="absolute bottom-0 left-0 w-full h-1 bg-[#c5a059] scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+        </a>
 
         <!-- Card 4: Audiencias (Pendiente Firebase) -->
         <div class="glass-card p-xl rounded-xl relative overflow-hidden group hover:border-secondary/50 transition-all shadow-sm bg-gradient-to-br from-white to-secondary-fixed/5">

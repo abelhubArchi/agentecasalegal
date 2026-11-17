@@ -2,6 +2,8 @@ import { writable } from 'svelte/store';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db, doc, getDoc } from '$lib/firebase/client.js';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { setActiveTenantId } from '$lib/firebase/tenant.js';
+import { empresaStore } from './empresa.js';
 
 function createAuthStore() {
     const { subscribe, set, update } = writable({
@@ -21,7 +23,7 @@ function createAuthStore() {
                 try {
                     let profile = null;
                     
-                    // 1. Try to find in empleados first
+                    // 1. Try to find in root empleados first
                     const q = query(collection(db, 'empleados'), where('authUid', '==', user.uid));
                     const querySnapshot = await getDocs(q);
                     
@@ -36,6 +38,17 @@ function createAuthStore() {
                             profile = docSnap.data();
                         }
                     }
+
+                    // Aislamiento Multi-Tenant estricto:
+                    // Si el usuario pertenece a una firma clonada (empresaId / empresaSlug), activar su espacio aislado.
+                    // Si el usuario pertenece a Casa Legal (sin empresaId o es 'casa_legal'), fijar tenant a null (Master).
+                    const userTenant = profile?.empresaId || profile?.empresaSlug;
+                    if (userTenant && userTenant !== 'casa_legal' && userTenant !== 'casa-legal' && userTenant !== 'default') {
+                        setActiveTenantId(userTenant);
+                    } else {
+                        setActiveTenantId(null);
+                    }
+                    empresaStore.init();
                     
                     set({ user, profile, loading: false, error: null });
                 } catch (err) {

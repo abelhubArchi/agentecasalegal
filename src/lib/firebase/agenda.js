@@ -1,11 +1,22 @@
 import { db } from './client.js';
-import { collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { 
+    collection, 
+    addDoc, 
+    updateDoc, 
+    doc, 
+    deleteDoc, 
+    onSnapshot, 
+    query, 
+    orderBy, 
+    serverTimestamp 
+} from 'firebase/firestore';
+import { getTenantCollection, getTenantDoc } from './tenant.js';
 
 const AGENDA_COLLECTION = 'agenda';
 
 export async function addEvento(data) {
     try {
-        const docRef = await addDoc(collection(db, AGENDA_COLLECTION), {
+        const docRef = await addDoc(getTenantCollection(AGENDA_COLLECTION), {
             ...data,
             fechaCreacion: serverTimestamp()
         });
@@ -17,8 +28,7 @@ export async function addEvento(data) {
 }
 
 export function subscribeToAgenda(callback) {
-    // We order by fechaHora to get them chronologically
-    const q = query(collection(db, AGENDA_COLLECTION), orderBy('fechaHora', 'asc'));
+    const q = query(getTenantCollection(AGENDA_COLLECTION), orderBy('fechaHora', 'asc'));
     
     return onSnapshot(q, (snapshot) => {
         const eventos = [];
@@ -33,7 +43,7 @@ export function subscribeToAgenda(callback) {
 
 export async function updateEvento(id, data) {
     try {
-        const docRef = doc(db, AGENDA_COLLECTION, id);
+        const docRef = getTenantDoc(AGENDA_COLLECTION, id);
         await updateDoc(docRef, data);
         return { success: true };
     } catch (error) {
@@ -44,7 +54,7 @@ export async function updateEvento(id, data) {
 
 export async function deleteEvento(id) {
     try {
-        await deleteDoc(doc(db, AGENDA_COLLECTION, id));
+        await deleteDoc(getTenantDoc(AGENDA_COLLECTION, id));
         return { success: true };
     } catch (error) {
         console.error("Error al eliminar evento:", error);

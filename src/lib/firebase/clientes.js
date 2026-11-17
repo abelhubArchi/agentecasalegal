@@ -10,6 +10,7 @@ import {
     orderBy, 
     serverTimestamp 
 } from 'firebase/firestore';
+import { getTenantCollection, getTenantDoc } from './tenant.js';
 import { registrarActividad } from './historial.js';
 
 const CLIENTES_COLLECTION = 'clientes';
@@ -19,7 +20,7 @@ const CLIENTES_COLLECTION = 'clientes';
  */
 export async function addCliente(clienteData) {
     try {
-        const docRef = await addDoc(collection(db, CLIENTES_COLLECTION), {
+        const docRef = await addDoc(getTenantCollection(CLIENTES_COLLECTION), {
             ...clienteData,
             fechaRegistro: serverTimestamp(),
             ultimaVisita: serverTimestamp(), // Track when they last visited
@@ -47,7 +48,7 @@ export async function addCliente(clienteData) {
  */
 export async function registrarVisita(id, currentVisits = 0, motivo = '') {
     try {
-        const docRef = doc(db, CLIENTES_COLLECTION, id);
+        const docRef = getTenantDoc(CLIENTES_COLLECTION, id);
         await updateDoc(docRef, {
             ultimaVisita: serverTimestamp(),
             visitasTotales: (currentVisits || 1) + 1,
@@ -73,12 +74,12 @@ export async function registrarVisita(id, currentVisits = 0, motivo = '') {
 
 /**
  * Suscribe a los cambios en tiempo real de la colección de clientes
-
+ *
  * @param {function} callback - Función a ejecutar cuando los datos cambien
  * @returns {function} Función para desuscribirse
  */
 export function subscribeToClientes(callback) {
-    const q = query(collection(db, CLIENTES_COLLECTION), orderBy('ultimaVisita', 'desc'));
+    const q = query(getTenantCollection(CLIENTES_COLLECTION), orderBy('ultimaVisita', 'desc'));
     
     return onSnapshot(q, (snapshot) => {
         const clientes = [];
@@ -96,7 +97,7 @@ export function subscribeToClientes(callback) {
  */
 export async function updateCliente(id, newData) {
     try {
-        const docRef = doc(db, CLIENTES_COLLECTION, id);
+        const docRef = getTenantDoc(CLIENTES_COLLECTION, id);
         await updateDoc(docRef, newData);
         return { success: true };
     } catch (error) {

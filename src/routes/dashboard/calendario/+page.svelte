@@ -4,6 +4,7 @@
     import { subscribeToEmpleados } from '$lib/firebase/empleados.js';
     import { subscribeToClientes } from '$lib/firebase/clientes.js';
     import { authStore } from '$lib/stores/auth.js';
+    import { notificarEventoCalendario, abrirEnGmail } from '$lib/services/notificaciones.js';
 
     let eventos = $state([]);
     let empleados = $state([]);
@@ -144,6 +145,41 @@
                 estado: 'Pendiente',
                 creadoPor: $authStore.user?.uid
             });
+
+            // Disparar Notificaciones Push & Gmail al asignado o a todo el equipo
+            const creadorNombre = $authStore.profile?.name || $authStore.profile?.nombre || 'Administrador';
+            if (finalAsignado === 'todos') {
+                empleados.forEach(emp => {
+                    if (emp.email) {
+                        notificarEventoCalendario({
+                            titulo: formData.titulo,
+                            tipoEvento: tipoFinal,
+                            fechaHora,
+                            asignadoAEmail: emp.email,
+                            asignadoANombre: emp.nombre,
+                            asignadoAUid: emp.id || emp.authUid,
+                            creadoPorNombre: creadorNombre,
+                            notas: formData.notas
+                        }).catch(e => console.warn("Aviso evento:", e));
+                    }
+                });
+            } else {
+                const empDestino = empleados.find(e => e.id === finalAsignado || e.authUid === finalAsignado);
+                const emailDestino = empDestino?.email || (finalAsignado === $authStore.user?.uid ? $authStore.user?.email : null);
+                const nombreDestino = empDestino ? `${empDestino.nombre || ''} ${empDestino.apellidos || ''}`.trim() : 'Colega Legal';
+                
+                notificarEventoCalendario({
+                    titulo: formData.titulo,
+                    tipoEvento: tipoFinal,
+                    fechaHora,
+                    asignadoAEmail: emailDestino,
+                    asignadoANombre: nombreDestino,
+                    asignadoAUid: finalAsignado,
+                    creadoPorNombre: creadorNombre,
+                    notas: formData.notas
+                }).catch(e => console.warn("Aviso evento:", e));
+            }
+
             showModal = false;
         } catch(error) {
             console.error(error);
@@ -344,6 +380,21 @@
                             
                             <!-- Hover actions -->
                             <div class="absolute inset-y-0 right-0 bg-surface/90 backdrop-blur-sm p-sm flex items-center gap-xs translate-x-full group-hover:translate-x-0 transition-transform shadow-l">
+                                <button 
+                                    type="button"
+                                    onclick={() => {
+                                        const fechaStr = ev.fechaHora?.toDate ? ev.fechaHora.toDate().toLocaleString('es-BO') : String(ev.fechaHora);
+                                        abrirEnGmail({
+                                            to: '',
+                                            subject: `Recordatorio: ${ev.titulo} (${ev.tipo})`,
+                                            body: `Estimado/a colega,\n\nTe recordamos la siguiente actividad legal programada en Casa Legal:\n\n• Asunto: ${ev.titulo}\n• Tipo: ${ev.tipo}\n• Fecha y Hora: ${fechaStr}\n• Notas: ${ev.notas || 'Sin notas adicionales'}\n\nAtentamente,\nCasa Legal`
+                                        });
+                                    }}
+                                    class="w-8 h-8 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center hover:bg-[#006a39] hover:text-white transition-colors" 
+                                    title="Avisar o enviar recordatorio por Gmail"
+                                >
+                                    <span class="material-symbols-outlined text-[16px]">mail</span>
+                                </button>
                                 {#if ev.estado !== 'Completado'}
                                     <button onclick={() => updateEvento(ev.id, {estado: 'Completado'})} class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center hover:opacity-90" title="Marcar completado">
                                         <span class="material-symbols-outlined text-[16px]">check</span>

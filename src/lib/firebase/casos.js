@@ -8,12 +8,14 @@ import {
     doc, 
     onSnapshot, 
     query, 
-    where,
+    where, 
     orderBy, 
     serverTimestamp,
     arrayUnion,
-    getCountFromServer
+    getCountFromServer,
+    getDocs
 } from 'firebase/firestore';
+import { getTenantCollection, getTenantDoc } from './tenant.js';
 import { addEvento } from './agenda.js';
 import { registrarActividad } from './historial.js';
 import { updateCliente } from './clientes.js';
@@ -26,11 +28,11 @@ const CASOS_COLLECTION = 'casos';
  */
 export async function addCaso(casoData) {
     try {
-        const snap = await getCountFromServer(collection(db, CASOS_COLLECTION));
+        const snap = await getCountFromServer(getTenantCollection(CASOS_COLLECTION));
         const numTramite = snap.data().count + 1;
         const numeroIdentificador = `CL-${numTramite}`;
 
-        const docRef = await addDoc(collection(db, CASOS_COLLECTION), {
+        const docRef = await addDoc(getTenantCollection(CASOS_COLLECTION), {
             ...casoData,
             numeroTramite: numeroIdentificador,
             creadoPor: casoData.creadoPor || 'Sistema',
@@ -57,7 +59,6 @@ export async function addCaso(casoData) {
         
         // Auto-create a calendar event for the deadline (fechaLimite)
         if (casoData.fechaLimite) {
-            // Append T12:00:00 so JS Date avoids UTC day-shifting backward in America timezones
             const fechaValida = casoData.fechaLimite.includes('T') ? casoData.fechaLimite : `${casoData.fechaLimite}T12:00:00`;
             await addEvento({
                 titulo: `Límite: ${casoData.titulo}`,
@@ -100,14 +101,7 @@ export async function addCaso(casoData) {
  * Suscribe a los cambios de la colección Casos
  */
 export function subscribeToCasos(callback) {
-    const q = query(
-        collection(db, CASOS_COLLECTION),
-        where('archivado', '!=', true), // Ignore archived cases
-        orderBy('archivado'), // Requires index on archivado, but wait... where archivado != true requires orderBy archivado first in firestore. Let's just filter it client side or use where archivado == false.
-    );
-    // Actually, setting archivado: false explicitly on add is better so we can use == false. Or we can just fetch all and filter in JS. Let's filter in JS to avoid index issues if we don't want to create composite indexes.
-    
-    const qAll = query(collection(db, CASOS_COLLECTION), orderBy('fechaCreacion', 'desc'));
+    const qAll = query(getTenantCollection(CASOS_COLLECTION), orderBy('fechaCreacion', 'desc'));
     
     return onSnapshot(qAll, (snapshot) => {
         const casos = [];
@@ -128,7 +122,7 @@ export function subscribeToCasos(callback) {
  */
 export async function updateCaso(id, newData) {
     try {
-        const docRef = doc(db, CASOS_COLLECTION, id);
+        const docRef = getTenantDoc(CASOS_COLLECTION, id);
         await updateDoc(docRef, newData);
         
         if (newData.estado) {
@@ -158,7 +152,7 @@ export async function updateCaso(id, newData) {
  */
 export async function registrarAvance(casoId, avanceData, programarEvento = null) {
     try {
-        const docRef = doc(db, CASOS_COLLECTION, casoId);
+        const docRef = getTenantDoc(CASOS_COLLECTION, casoId);
         
         const nuevoAvance = {
             id: Date.now().toString(),
@@ -207,7 +201,7 @@ export async function registrarAvance(casoId, avanceData, programarEvento = null
  */
 export async function deleteCaso(id) {
     try {
-        await deleteDoc(doc(db, CASOS_COLLECTION, id));
+        await deleteDoc(getTenantDoc(CASOS_COLLECTION, id));
         return { success: true };
     } catch (error) {
         console.error("Error al eliminar caso:", error);
@@ -220,7 +214,7 @@ export async function deleteCaso(id) {
  */
 export async function archivarCaso(id, motivo = 'Archivado') {
     try {
-        const docRef = doc(db, CASOS_COLLECTION, id);
+        const docRef = getTenantDoc(CASOS_COLLECTION, id);
         await updateDoc(docRef, { archivado: true });
         
         await registrarActividad(
@@ -230,7 +224,6 @@ export async function archivarCaso(id, motivo = 'Archivado') {
             'Sistema'
         );
         
-        // Optionally update client to clear active tramite if it was this one
         const docSnap = await getDoc(docRef);
         if (docSnap.exists() && docSnap.data().clienteId) {
             await updateCliente(docSnap.data().clienteId, { 
@@ -245,5 +238,68 @@ export async function archivarCaso(id, motivo = 'Archivado') {
     } catch (error) {
         console.error("Error al archivar caso:", error);
         throw error;
+    }
+}
+
+/**
+ * Suscribe al Historial de Trámites Archivados / Finalizados en Cierres de Caja
+ */
+export function subscribeToCasosArchivados(callback) {
+    const qAll = query(getTenantCollection(CASOS_COLLECTION), orderBy('fechaCreacion', 'desc'));
+    
+    return onSnapshot(qAll, (snapshot) => {
+        const archivados = [];
+        snapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data.archivado === true) {
+                archivados.push({ id: doc.id, ...data });
+            }
+        });
+        callback(archivados);
+    }, (error) => {
+        console.error("Error subscribing to casos archivados:", error);
+        callback([]);
+    });
+}
+
+/**
+ * Archiva todos los trámites con estado 'Finalizado' hasta la fecha/hora de corte del cierre de caja
+ */
+export async function archivarCasosFinalizadosPorFecha(fechaCorte = new Date(), cierreId = null) {
+    try {
+        const dateObj = fechaCorte instanceof Date ? fechaCorte : new Date(fechaCorte);
+        const snapshot = await getDocs(getTenantCollection(CASOS_COLLECTION));
+        const archivados = [];
+
+        for (const docSnap of snapshot.docs) {
+            const data = docSnap.data();
+            if (data.estado === 'Finalizado' && !data.archivado) {
+                let fechaCaso = data.fechaCreacion?.toDate ? data.fechaCreacion.toDate() : (data.fechaCreacion ? new Date(data.fechaCreacion) : new Date(0));
+                
+                if (fechaCaso <= dateObj || isNaN(dateObj.getTime())) {
+                    await updateDoc(docSnap.ref, {
+                        archivado: true,
+                        cierreId: cierreId || 'cierre_general',
+                        fechaArchivado: dateObj,
+                        archivadoEnCierre: true
+                    });
+                    archivados.push({ id: docSnap.id, ...data });
+                }
+            }
+        }
+
+        if (archivados.length > 0) {
+            await registrarActividad(
+                'Trámites',
+                'Cierre de Trámites Finalizados',
+                `Se archivaron ${archivados.length} trámites finalizados por Cierre de Caja a fecha ${dateObj.toLocaleDateString('es-BO')}. Movidos al Historial.`,
+                'Administrador General'
+            );
+        }
+
+        return archivados;
+    } catch (error) {
+        console.error("Error al archivar casos finalizados:", error);
+        return [];
     }
 }

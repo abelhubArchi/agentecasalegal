@@ -1,15 +1,32 @@
 import { db } from './client.js';
-import { collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { 
+    collection, 
+    addDoc, 
+    updateDoc, 
+    doc, 
+    deleteDoc, 
+    onSnapshot, 
+    query, 
+    orderBy, 
+    serverTimestamp 
+} from 'firebase/firestore';
+import { getTenantCollection, getTenantDoc, getActiveTenantId } from './tenant.js';
 
 const EMPLEADOS_COLLECTION = 'empleados';
 
 export async function addEmpleado(data) {
     try {
-        const docRef = await addDoc(collection(db, EMPLEADOS_COLLECTION), {
+        const tenantId = getActiveTenantId();
+        const payload = {
             ...data,
             fechaRegistro: serverTimestamp(),
             estado: 'Activo'
-        });
+        };
+        if (tenantId) {
+            payload.empresaId = tenantId;
+        }
+
+        const docRef = await addDoc(getTenantCollection(EMPLEADOS_COLLECTION), payload);
         return { success: true, id: docRef.id };
     } catch (error) {
         console.error("Error al añadir empleado:", error);
@@ -18,7 +35,7 @@ export async function addEmpleado(data) {
 }
 
 export function subscribeToEmpleados(callback) {
-    const q = query(collection(db, EMPLEADOS_COLLECTION), orderBy('fechaRegistro', 'desc'));
+    const q = query(getTenantCollection(EMPLEADOS_COLLECTION), orderBy('fechaRegistro', 'desc'));
     
     return onSnapshot(q, (snapshot) => {
         const empleados = [];
@@ -33,7 +50,7 @@ export function subscribeToEmpleados(callback) {
 
 export async function updateEmpleado(id, data) {
     try {
-        const docRef = doc(db, EMPLEADOS_COLLECTION, id);
+        const docRef = getTenantDoc(EMPLEADOS_COLLECTION, id);
         await updateDoc(docRef, data);
         return { success: true };
     } catch (error) {
@@ -44,7 +61,7 @@ export async function updateEmpleado(id, data) {
 
 export async function deleteEmpleado(id) {
     try {
-        await deleteDoc(doc(db, EMPLEADOS_COLLECTION, id));
+        await deleteDoc(getTenantDoc(EMPLEADOS_COLLECTION, id));
         return { success: true };
     } catch (error) {
         console.error("Error al eliminar empleado:", error);

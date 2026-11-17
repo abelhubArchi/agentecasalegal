@@ -16,6 +16,7 @@
         apellidos: '',
         rol: 'Abogado',
         nivelAcceso: 'colaborador',
+        email: '',
         telefono: '',
         password: ''
     });
@@ -39,25 +40,31 @@
 
     async function handleSubmit(e) {
         e.preventDefault();
+        const emailIngresado = formData.email?.trim();
+        if (!emailIngresado || !emailIngresado.includes('@')) {
+            return alert("Por favor ingresa un correo electrónico / Gmail válido para recibir las notificaciones.");
+        }
+
         isSubmitting = true;
         try {
-            // 1. Create the Auth User using the secondary instance (so Admin isn't logged out)
-            const fakeEmail = `${formData.telefono}@casalegal.com`;
-            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, fakeEmail, formData.password);
+            // 1. Create the Auth User using the secondary instance with real email (so Admin isn't logged out)
+            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, emailIngresado, formData.password);
             const uid = userCredential.user.uid;
             
             // Sign out the secondary instance immediately just to be safe
             await signOut(secondaryAuth);
 
-            // 2. Add employee to Firestore
+            // 2. Add employee to Firestore with their official Gmail address
             const { password, ...empleadoData } = formData;
             await addEmpleado({
                 ...empleadoData,
+                email: emailIngresado,
                 authUid: uid
             });
             
             showModal = false;
-            formData = { nombre: '', apellidos: '', rol: 'Abogado', nivelAcceso: 'colaborador', telefono: '', password: '' };
+            formData = { nombre: '', apellidos: '', rol: 'Abogado', nivelAcceso: 'colaborador', email: '', telefono: '', password: '' };
+            alert(`Empleado registrado con éxito. Se le enviarán notificaciones al correo ${emailIngresado}.`);
         } catch (error) {
             console.error(error);
             alert("Error al crear empleado: " + error.message);
@@ -74,6 +81,7 @@
 
     let showPermisosModal = $state(false);
     let empAEditar = $state(null);
+    let empAEditarEmail = $state('');
     let modulosSeleccionados = $state([]);
     let isGeneralAdminModal = $state(false);
 
@@ -87,6 +95,7 @@
 
     function abrirPermisos(emp) {
         empAEditar = emp;
+        empAEditarEmail = emp.email || '';
         modulosSeleccionados = emp.modulosAccesibles || [];
         isGeneralAdminModal = emp.nivelAcceso === 'admin' || emp.rol === 'Administrador';
         showPermisosModal = true;
@@ -99,9 +108,11 @@
             await updateEmpleado(empAEditar.id, { 
                 modulosAccesibles: modulosSeleccionados,
                 nivelAcceso: isGeneralAdminModal ? 'admin' : 'colaborador',
-                rol: isGeneralAdminModal ? 'Administrador' : (empAEditar.rol === 'Administrador' ? 'Abogado' : empAEditar.rol)
+                rol: isGeneralAdminModal ? 'Administrador' : (empAEditar.rol === 'Administrador' ? 'Abogado' : empAEditar.rol),
+                email: empAEditarEmail ? empAEditarEmail.trim() : (empAEditar.email || '')
             });
             showPermisosModal = false;
+            alert("Datos y permisos actualizados correctamente.");
         } catch(error) {
             alert('Error guardando permisos.');
         } finally {
@@ -150,9 +161,15 @@
                         <p class="text-secondary font-bold text-label-sm px-sm py-[2px] bg-secondary-container/30 rounded-full">{emp.rol}</p>
                         <p class="text-primary font-bold text-label-sm px-sm py-[2px] bg-primary/10 rounded-full">{emp.nivelAcceso === 'admin' ? 'Admin. General' : 'Colaborador'}</p>
                     </div>
-                    <p class="text-on-surface-variant text-body-md mt-sm flex items-center gap-xs justify-center">
-                        <span class="material-symbols-outlined text-[16px]">phone</span> {emp.telefono}
-                    </p>
+                    <div class="mt-sm space-y-1 text-center">
+                        <p class="text-on-surface-variant text-body-sm flex items-center gap-xs justify-center font-mono">
+                            <span class="material-symbols-outlined text-[15px] text-primary">mail</span> 
+                            <span class="truncate max-w-[220px] font-bold text-primary">{emp.email || 'Sin correo asignado'}</span>
+                        </p>
+                        <p class="text-on-surface-variant text-body-sm flex items-center gap-xs justify-center">
+                            <span class="material-symbols-outlined text-[15px]">phone</span> {emp.telefono}
+                        </p>
+                    </div>
                 </div>
             {:else}
                 <div class="col-span-full text-center py-xl text-on-surface-variant">
@@ -169,7 +186,7 @@
         <div class="bg-surface rounded-2xl w-[95vw] max-w-[500px] shadow-2xl overflow-hidden border border-outline-variant animate-in fade-in zoom-in-95 duration-200">
             <div class="px-lg py-md bg-primary-container text-on-primary-container flex justify-between items-center">
                 <h3 class="font-bold font-headline-md flex items-center gap-xs">
-                    <span class="material-symbols-outlined">person_add</span> Nuevo Empleado
+                    <span class="material-symbols-outlined">person_add</span> Nuevo Empleado / Abogado
                 </h3>
                 <button onclick={() => showModal = false} class="hover:bg-black/10 p-xs rounded-full">
                     <span class="material-symbols-outlined">close</span>
@@ -185,6 +202,22 @@
                         <label class="text-label-sm font-bold text-on-surface-variant">Apellidos</label>
                         <input type="text" bind:value={formData.apellidos} required class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg py-sm px-md outline-none focus:ring-2 focus:ring-primary/30">
                     </div>
+                </div>
+
+                <!-- CORREO ELECTRÓNICO / GMAIL PARA NOTIFICACIONES -->
+                <div class="space-y-xs">
+                    <label class="text-label-sm font-bold text-on-surface-variant flex items-center justify-between">
+                        <span>Correo Electrónico / Gmail *</span>
+                        <span class="text-[10px] text-primary font-bold">Push & Gmail</span>
+                    </label>
+                    <input 
+                        type="email" 
+                        bind:value={formData.email} 
+                        required 
+                        placeholder="abogado@gmail.com" 
+                        class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg py-sm px-md outline-none focus:ring-2 focus:ring-primary/30"
+                    >
+                    <p class="text-[10px] text-on-surface-variant">A este correo se le enviarán las alertas de Chat Legal, audiencias del Calendario y movimientos de Cuentas.</p>
                 </div>
                 
                 <div class="grid grid-cols-2 gap-md">
@@ -208,13 +241,13 @@
 
                 <div class="space-y-xs">
                     <label class="text-label-sm font-bold text-on-surface-variant">Teléfono</label>
-                    <input type="tel" bind:value={formData.telefono} required placeholder="Ej. 5512345678" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg py-sm px-md outline-none focus:ring-2 focus:ring-primary/30">
+                    <input type="tel" bind:value={formData.telefono} required placeholder="Ej. 70000000" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg py-sm px-md outline-none focus:ring-2 focus:ring-primary/30">
                 </div>
 
                 <div class="space-y-xs">
                     <label class="text-label-sm font-bold text-on-surface-variant">Contraseña de Acceso</label>
                     <input type="password" bind:value={formData.password} required placeholder="Mínimo 6 caracteres" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg py-sm px-md outline-none focus:ring-2 focus:ring-primary/30">
-                    <p class="text-[10px] text-on-surface-variant mt-1">Esta es la contraseña que usará para entrar al sistema.</p>
+                    <p class="text-[10px] text-on-surface-variant mt-1">Esta es la contraseña que usará para entrar al sistema con su correo.</p>
                 </div>
 
                 <div class="pt-md flex justify-end gap-sm">
@@ -228,15 +261,30 @@
 
 {#if showPermisosModal}
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-on-background/40 backdrop-blur-sm p-4">
-        <div class="bg-surface rounded-2xl w-[95vw] max-w-[400px] shadow-2xl overflow-hidden border border-outline-variant animate-in fade-in zoom-in-95 duration-200">
+        <div class="bg-surface rounded-2xl w-[95vw] max-w-[420px] shadow-2xl overflow-hidden border border-outline-variant animate-in fade-in zoom-in-95 duration-200">
             <div class="px-lg py-md border-b border-outline-variant flex justify-between items-center bg-surface-container-lowest">
-                <h3 class="font-bold font-headline-sm text-on-surface">Módulos Permitidos</h3>
+                <h3 class="font-bold font-headline-sm text-on-surface">Datos y Permisos</h3>
                 <button onclick={() => showPermisosModal = false} class="hover:bg-surface-container p-xs rounded-full">
                     <span class="material-symbols-outlined">close</span>
                 </button>
             </div>
             <div class="p-lg space-y-sm">
-                <p class="text-label-sm text-on-surface-variant mb-md">Selecciona los permisos para <strong>{empAEditar.nombre}</strong>.</p>
+                <p class="text-label-sm text-on-surface-variant mb-3">Actualiza los datos y permisos de <strong>{empAEditar.nombre} {empAEditar.apellidos || ''}</strong>.</p>
+
+                <!-- Campo para actualizar su correo de notificaciones -->
+                <div class="space-y-xs mb-3 p-3 bg-primary/5 border border-primary/20 rounded-xl">
+                    <label class="text-label-sm font-bold text-on-surface flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[16px] text-primary">mail</span>
+                        <span>Correo Electrónico (Gmail de Notificaciones)</span>
+                    </label>
+                    <input 
+                        type="email" 
+                        bind:value={empAEditarEmail} 
+                        placeholder="abogado@gmail.com" 
+                        class="w-full bg-surface border border-outline-variant rounded-lg py-sm px-md text-xs outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                    <p class="text-[10px] text-on-surface-variant">Aquí recibirá alertas de Chat Legal, calendario de audiencias e ingresos.</p>
+                </div>
                 
                 <label class="flex items-start gap-3 p-4 mb-4 border-2 {isGeneralAdminModal ? 'border-[#D4AF37] bg-[#D4AF37]/10' : 'border-outline-variant hover:bg-surface-container-lowest'} rounded-xl cursor-pointer transition-colors shadow-sm">
                     <input type="checkbox" bind:checked={isGeneralAdminModal} class="mt-1 w-5 h-5 rounded border-outline-variant focus:ring-[#D4AF37]" style="accent-color: #D4AF37;">
